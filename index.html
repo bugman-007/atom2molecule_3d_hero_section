@@ -66,6 +66,31 @@
         opacity: 0.7;
         pointer-events: none;
       }
+      /* Copy overlays (left headline, right paragraph) */
+      .copy {
+        position: absolute;
+        max-width: 44ch;
+        line-height: 1.1;
+        letter-spacing: 0.02em;
+        text-wrap: balance;
+      }
+      #copy1 {
+        left: 4vw;
+        top: 22vh;
+        font-weight: 800;
+        font-size: clamp(26px, 5vw, 52px);
+        color: #e9eef6;
+      }
+      #copy2 {
+        right: 5vw;
+        top: 28vh;
+        font-weight: 500;
+        font-size: clamp(14px, 1.6vw, 18px);
+        color: #d9e3ef;
+        opacity: 0;
+        pointer-events: none;
+      }
+
       /* After section ensures we can test scroll + pin behavior */
       #after {
         min-height: 200vh;
@@ -83,6 +108,12 @@
         src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E"
       />
       <div class="status" id="status">Bonds + Pin setup…</div>
+      <div id="copy1">/ IN THE<br />PURSUIT OF<br />PROGRESS</div>
+      <div id="copy2">
+        Chematek is an industrial technology company that offers products,
+        services, and solutions for chemicals, lubricants and engineering,
+        procurement, and construction.
+      </div>
     </section>
     <section id="after">
       <div>Scroll past the pinned hero to verify release behavior.</div>
@@ -166,12 +197,15 @@
         // Atoms
         molecule = new THREE.Group();
         scene.add(molecule);
+        molecule.position.x = 1.2; // start on the right; we will slide left at the swap
+
         const atomGeo = new THREE.SphereGeometry(0.6, 48, 48);
         const atoms = [
           { id: "A", pos: new THREE.Vector3(-3.0, 0.5, 0.0), phase: 0.0 },
           { id: "B", pos: new THREE.Vector3(3.0, -0.2, 0.0), phase: 0.73 },
           { id: "C", pos: new THREE.Vector3(0.0, 2.2, 0.0), phase: 1.31 },
           { id: "D", pos: new THREE.Vector3(0.0, -2.2, 0.0), phase: 2.07 },
+          { id: "E", pos: new THREE.Vector3(2.2, 1.4, 0.0), phase: 2.66 }, // new
         ].map((d) => {
           const m = new THREE.Mesh(atomGeo, atomMat);
           m.position.copy(d.pos);
@@ -181,21 +215,25 @@
         });
         // --- Targets & via control points (for assembly) ---
         const startPositions = atoms.map((m) => m.position.clone());
+        // Final silhouette (balanced for hero; tweak after design sign-off)
         const targets = [
           new THREE.Vector3(-1.0, 0.0, 0.0), // A
           new THREE.Vector3(1.0, 0.0, 0.0), // B
           new THREE.Vector3(0.0, 1.6, 0.0), // C
           new THREE.Vector3(0.0, -1.6, 0.0), // D
+          new THREE.Vector3(1.2, 1.0, 0.0), // E (upper-right lobe)
         ];
-        // One via per moving atom to get a gentle curved approach (adjust later if needed)
+        // Gentle curved approaches (kept shallow in Z to avoid nausea)
         const vias = {
-          A: new THREE.Vector3(-1.8, 0.6, 0.25),
-          B: new THREE.Vector3(1.8, 0.6, 0.5),
-          C: new THREE.Vector3(0.6, 1.8, -0.4),
-          D: new THREE.Vector3(-0.4, -1.8, 0.3),
+          A: new THREE.Vector3(-1.8, 0.6, 0.2),
+          B: new THREE.Vector3(1.8, 0.6, 0.45),
+          C: new THREE.Vector3(0.6, 1.8, -0.35),
+          D: new THREE.Vector3(-0.4, -1.8, 0.25),
+          E: new THREE.Vector3(1.7, 1.7, -0.3),
         };
 
         // Bonds (assembly-ready: length = computedLen * growth)
+        // Bonds (fully hidden until growth > 0)
         const bondGeo = new THREE.CylinderGeometry(0.12, 0.12, 1, 24);
         const bonds = [];
 
@@ -203,14 +241,17 @@
           const mesh = new THREE.Mesh(bondGeo, bondMat);
           mesh.userData.aIdx = aIdx;
           mesh.userData.bIdx = bIdx;
-          mesh.userData.growth = 0.0001; // start effectively invisible
+          mesh.userData.growth = 0; // start at 0, not ~0
+          mesh.visible = false; // truly hidden until we animate it
           molecule.add(mesh);
           bonds.push(mesh);
           return mesh;
         }
-        createBond(0, 1); // A-B
-        createBond(1, 2); // B-C
-        createBond(2, 3); // C-D
+        createBond(2, 4); // A-B
+        createBond(1, 4); // B-C
+        createBond(1, 3); // C-D
+        createBond(0, 3); // B-E
+        createBond(0, 2);
 
         const UP = new THREE.Vector3(0, 1, 0);
         const tmpDir = new THREE.Vector3();
@@ -220,17 +261,16 @@
           const b = atoms[mesh.userData.bIdx].position;
           tmpDir.subVectors(b, a);
           const len = tmpDir.length();
-          if (len < 1e-6) {
-            mesh.visible = false;
+
+          if (len < 1e-6 || (mesh.userData.growth ?? 0) <= 0) {
+            mesh.visible = false; // hide when collapsed or degenerate
             return;
           }
           mesh.visible = true;
           tmpMid.addVectors(a, b).multiplyScalar(0.5);
           mesh.position.copy(tmpMid);
           mesh.quaternion.setFromUnitVectors(UP, tmpDir.normalize());
-          // growth multiplies the *computed* length
-          const g = Math.max(0.0001, mesh.userData.growth || 0.0001);
-          mesh.scale.set(1, len * g, 1);
+          mesh.scale.set(1, len * mesh.userData.growth, 1); // no epsilon
         }
 
         function moveAlongQuadratic(atomIdx, p0, p1, p2, tl, dur, at) {
@@ -304,15 +344,16 @@
           // Labels for clarity
           tl.addLabel("idle", 0.0)
             .addLabel("assemble", 0.25)
-            .addLabel("orbit", 0.75);
+            .addLabel("orbit", 0.75)
+            .addLabel("swap", 0.82); // when copy swaps and molecule relocates
 
-          // Ensure drift doesn't fight the path during assembly
+          // Kill drift during precise pathing
           tl.add(() => {
             driftAmpX = 0;
             driftAmpY = 0;
           }, "assemble-=0.05");
 
-          // Atom moves (A, B, C, D) along designed curves
+          // Bezier moves (staggered) — now includes E
           moveAlongQuadratic(
             0,
             startPositions[0],
@@ -330,7 +371,7 @@
             tl,
             1.2,
             "assemble+=0.20"
-          ); // B (slight stagger)
+          ); // B
           moveAlongQuadratic(
             2,
             startPositions[2],
@@ -349,31 +390,71 @@
             1.2,
             "assemble+=0.90"
           ); // D
+          moveAlongQuadratic(
+            4,
+            startPositions[4],
+            vias.E,
+            targets[4],
+            tl,
+            1.2,
+            "assemble+=1.25"
+          ); // E
 
-          // Bond growth timed to the approaches (growth multiplies computed length)
+          /// Bond growth (turn visible right as they start growing)
           tl.to(
             bonds[0].userData,
-            { growth: 1, duration: 0.6, ease: "back.out(1.2)" },
-            "assemble+=0.55"
-          ); // A-B
+            {
+              growth: 1,
+              duration: 0.6,
+              ease: "back.out(1.2)",
+              onStart: () => (bonds[0].visible = true),
+            },
+            "assemble+=0.50"
+          );
           tl.to(
             bonds[1].userData,
-            { growth: 1, duration: 0.6 },
-            "assemble+=0.90"
-          ); // B-C
+            {
+              growth: 1,
+              duration: 0.6,
+              onStart: () => (bonds[1].visible = true),
+            },
+            "assemble+=0.85"
+          );
           tl.to(
             bonds[2].userData,
-            { growth: 1, duration: 0.6 },
-            "assemble+=1.25"
-          ); // C-D
+            {
+              growth: 1,
+              duration: 0.6,
+              onStart: () => (bonds[2].visible = true),
+            },
+            "assemble+=1.05"
+          );
+          tl.to(
+            bonds[3].userData,
+            {
+              growth: 1,
+              duration: 0.6,
+              onStart: () => (bonds[3].visible = true),
+            },
+            "assemble+=1.15"
+          );
+          tl.to(
+            bonds[4].userData,
+            {
+              growth: 1,
+              duration: 0.6,
+              onStart: () => (bonds[4].visible = true),
+            },
+            "assemble+=1.20"
+          );
 
-          // Re-introduce very low drift once assembled
+          // Re-introduce subtle drift once formed
           tl.add(() => {
             driftAmpX = 0.0015;
             driftAmpY = 0.0012;
           }, "orbit-=0.05");
 
-          // Slow global orbit + camera ellipse (lights remain fixed)
+          // Slow global orbit + shallow camera ellipse (lights remain fixed)
           tl.to(
             molecule.rotation,
             { y: "+=" + Math.PI * 0.6, duration: 2.5, ease: "none" },
@@ -389,6 +470,24 @@
               onUpdate: () => camera.lookAt(0, 0, 0),
             },
             "orbit"
+          );
+
+          // --- Copy + relocation per client ---
+          // Fade out headline, slide molecule **into** that left space, fade in paragraph on right
+          tl.to(
+            "#copy1",
+            { autoAlpha: 0, duration: 0.45, ease: "power1.out" },
+            "swap"
+          );
+          tl.to(
+            molecule.position,
+            { x: -1.3, duration: 1.4, ease: "power2.inOut" },
+            "swap"
+          ); // move right → left
+          tl.to(
+            "#copy2",
+            { autoAlpha: 1, duration: 0.55, ease: "power1.out" },
+            "swap+=0.35"
           );
         }
 
