@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Chematek Hero – Bonds + Pin</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: #0a2746;
+        color: #e8eef6;
+        font-family: system-ui, Arial, sans-serif;
+      }
+      :root {
+        --vh: 1vh;
+      }
+      #hero {
+        position: relative;
+        width: 100%;
+        height: 100dvh;
+        height: calc(var(--vh) * 100);
+        overflow: hidden;
+        overscroll-behavior: contain;
+        background: radial-gradient(
+          120% 120% at 30% 20%,
+          #0e3969 0%,
+          #06223d 60%,
+          #051c33 100%
+        );
+      }
+      #hero canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .poster {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: saturate(0.9) brightness(1.05);
+      }
+      .poster.hidden {
+        display: none;
+      }
+      .status {
+        position: absolute;
+        inset: auto 0 1rem 0;
+        text-align: center;
+        font-size: 0.9rem;
+        opacity: 0.7;
+        pointer-events: none;
+      }
+      /* After section ensures we can test scroll + pin behavior */
+      #after {
+        min-height: 200vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, #051c33 0%, #0a2746 100%);
+      }
+    </style>
+  </head>
+  <body>
+    <section id="hero" aria-label="Hero 3D stage">
+      <img
+        class="poster"
+        alt="Molecule hero poster"
+        src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E"
+      />
+      <div class="status" id="status">Bonds + Pin setup…</div>
+    </section>
+    <section id="after">
+      <div>Scroll past the pinned hero to verify release behavior.</div>
+    </section>
+
+    <!-- Libraries (pinned) -->
+    <script src="./assets/vendor/gsap.min.js"></script>
+    <script src="./assets/vendor/ScrollTrigger.min.js"></script>
+    <script type="module">
+      import * as THREE from "./assets/vendor/three.module.min.js";
+
+      // --- Mobile viewport stability ---
+      (function setVH() {
+        const set = () =>
+          document.documentElement.style.setProperty(
+            "--vh",
+            window.innerHeight * 0.01 + "px"
+          );
+        set();
+        addEventListener("resize", set, { passive: true });
+        addEventListener("orientationchange", set);
+      })();
+
+      const heroEl = document.getElementById("hero");
+      const statusEl = document.getElementById("status");
+      const posterEl = document.querySelector(".poster");
+
+      let renderer, scene, camera, molecule, rafId;
+
+      try {
+        // Renderer with DPR cap
+        renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: false,
+          powerPreference: "high-performance",
+        });
+        const isCoarse = matchMedia("(pointer: coarse)").matches;
+        const dprCap = isCoarse ? 1.75 : 2.0;
+        renderer.setPixelRatio(Math.min(devicePixelRatio || 1, dprCap));
+        renderer.setSize(heroEl.clientWidth, heroEl.clientHeight, false);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.NoToneMapping;
+        renderer.setClearColor(0x053b6c, 1);
+        heroEl.prepend(renderer.domElement);
+
+        // Scene & camera
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x053b6c);
+        camera = new THREE.PerspectiveCamera(
+          35,
+          heroEl.clientWidth / heroEl.clientHeight,
+          0.1,
+          100
+        );
+        camera.position.set(0, 0, 8);
+
+        // Fixed lighting (never animate)
+        const key = new THREE.DirectionalLight(0xffffff, 1.05);
+        key.position.set(2.2, 3.0, 4.0);
+        const rim = new THREE.DirectionalLight(0xaecbff, 0.38);
+        rim.position.set(-3.0, 1.2, -2.2);
+        const amb = new THREE.AmbientLight(0xffffff, 0.18);
+        scene.add(key, rim, amb);
+
+        // Materials
+        const atomMat = new THREE.MeshPhysicalMaterial({
+          color: 0x2c5aa0,
+          roughness: 0.28,
+          metalness: 0.08,
+          clearcoat: 0.6,
+          clearcoatRoughness: 0.4,
+        });
+        const bondMat = new THREE.MeshPhysicalMaterial({
+          color: 0x87a9d8,
+          roughness: 0.35,
+          metalness: 0.05,
+          clearcoat: 0.3,
+          clearcoatRoughness: 0.5,
+        });
+
+        // Atoms
+        molecule = new THREE.Group();
+        scene.add(molecule);
+        const atomGeo = new THREE.SphereGeometry(0.6, 48, 48);
+        const atoms = [
+          { id: "A", pos: new THREE.Vector3(-3.0, 0.5, 0.0), phase: 0.0 },
+          { id: "B", pos: new THREE.Vector3(3.0, -0.2, 0.0), phase: 0.73 },
+          { id: "C", pos: new THREE.Vector3(0.0, 2.2, 0.0), phase: 1.31 },
+          { id: "D", pos: new THREE.Vector3(0.0, -2.2, 0.0), phase: 2.07 },
+        ].map((d) => {
+          const m = new THREE.Mesh(atomGeo, atomMat);
+          m.position.copy(d.pos);
+          m.userData.phase = d.phase;
+          molecule.add(m);
+          return m;
+        });
+        // --- Targets & via control points (for assembly) ---
+        const startPositions = atoms.map((m) => m.position.clone());
+        const targets = [
+          new THREE.Vector3(-1.0, 0.0, 0.0), // A
+          new THREE.Vector3(1.0, 0.0, 0.0), // B
+          new THREE.Vector3(0.0, 1.6, 0.0), // C
+          new THREE.Vector3(0.0, -1.6, 0.0), // D
+        ];
+        // One via per moving atom to get a gentle curved approach (adjust later if needed)
+        const vias = {
+          A: new THREE.Vector3(-1.8, 0.6, 0.25),
+          B: new THREE.Vector3(1.8, 0.6, 0.5),
+          C: new THREE.Vector3(0.6, 1.8, -0.4),
+          D: new THREE.Vector3(-0.4, -1.8, 0.3),
+        };
+
+        // Bonds (assembly-ready: length = computedLen * growth)
+        const bondGeo = new THREE.CylinderGeometry(0.12, 0.12, 1, 24);
+        const bonds = [];
+
+        function createBond(aIdx, bIdx) {
+          const mesh = new THREE.Mesh(bondGeo, bondMat);
+          mesh.userData.aIdx = aIdx;
+          mesh.userData.bIdx = bIdx;
+          mesh.userData.growth = 0.0001; // start effectively invisible
+          molecule.add(mesh);
+          bonds.push(mesh);
+          return mesh;
+        }
+        createBond(0, 1); // A-B
+        createBond(1, 2); // B-C
+        createBond(2, 3); // C-D
+
+        const UP = new THREE.Vector3(0, 1, 0);
+        const tmpDir = new THREE.Vector3();
+        const tmpMid = new THREE.Vector3();
+        function positionBond(mesh) {
+          const a = atoms[mesh.userData.aIdx].position;
+          const b = atoms[mesh.userData.bIdx].position;
+          tmpDir.subVectors(b, a);
+          const len = tmpDir.length();
+          if (len < 1e-6) {
+            mesh.visible = false;
+            return;
+          }
+          mesh.visible = true;
+          tmpMid.addVectors(a, b).multiplyScalar(0.5);
+          mesh.position.copy(tmpMid);
+          mesh.quaternion.setFromUnitVectors(UP, tmpDir.normalize());
+          // growth multiplies the *computed* length
+          const g = Math.max(0.0001, mesh.userData.growth || 0.0001);
+          mesh.scale.set(1, len * g, 1);
+        }
+
+        function moveAlongQuadratic(atomIdx, p0, p1, p2, tl, dur, at) {
+          const proxy = { t: 0 };
+          tl.to(
+            proxy,
+            {
+              t: 1,
+              duration: dur,
+              ease: "power2.out",
+              onUpdate: () => {
+                const t = proxy.t,
+                  it = 1 - t;
+                const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
+                const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
+                const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
+                atoms[atomIdx].position.set(x, y, z);
+              },
+            },
+            at
+          );
+        }
+
+        // Micro-drift (very subtle, no Z)
+        let t = 0;
+        let driftAmpX = 0.0025,
+          driftAmpY = 0.002; // << add amplitudes
+        function render() {
+          t += 0.01;
+          for (let i = 0; i < atoms.length; i++) {
+            const m = atoms[i];
+            const ph = m.userData.phase || 0;
+            const dx = Math.sin(t * 0.52 + ph) * driftAmpX; // << use amplitudes
+            const dy = Math.sin(t * 0.37 + ph * 1.33) * driftAmpY;
+            m.position.x += dx;
+            m.position.y += dy;
+          }
+          for (let i = 0; i < bonds.length; i++) positionBond(bonds[i]);
+
+          renderer.render(scene, camera);
+          rafId = requestAnimationFrame(render);
+        }
+        rafId = requestAnimationFrame(render);
+
+        // Resize/orientation
+        const onResize = () => {
+          const w = heroEl.clientWidth,
+            h = heroEl.clientHeight;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h, false);
+        };
+        addEventListener("resize", onResize, { passive: true });
+        addEventListener("orientationchange", onResize);
+
+        // Master GSAP timeline: pin + scrub + assembly + orbit
+        if (window.gsap && window.ScrollTrigger) {
+          gsap.registerPlugin(ScrollTrigger);
+          const tl = gsap.timeline({
+            defaults: { ease: "power2.out" },
+            scrollTrigger: {
+              trigger: "#hero",
+              start: "top top",
+              end: "+=180%",
+              scrub: true,
+              pin: true,
+              // markers: true,
+            },
+          });
+
+          // Labels for clarity
+          tl.addLabel("idle", 0.0)
+            .addLabel("assemble", 0.25)
+            .addLabel("orbit", 0.75);
+
+          // Ensure drift doesn't fight the path during assembly
+          tl.add(() => {
+            driftAmpX = 0;
+            driftAmpY = 0;
+          }, "assemble-=0.05");
+
+          // Atom moves (A, B, C, D) along designed curves
+          moveAlongQuadratic(
+            0,
+            startPositions[0],
+            vias.A,
+            targets[0],
+            tl,
+            1.2,
+            "assemble"
+          ); // A
+          moveAlongQuadratic(
+            1,
+            startPositions[1],
+            vias.B,
+            targets[1],
+            tl,
+            1.2,
+            "assemble+=0.20"
+          ); // B (slight stagger)
+          moveAlongQuadratic(
+            2,
+            startPositions[2],
+            vias.C,
+            targets[2],
+            tl,
+            1.2,
+            "assemble+=0.55"
+          ); // C
+          moveAlongQuadratic(
+            3,
+            startPositions[3],
+            vias.D,
+            targets[3],
+            tl,
+            1.2,
+            "assemble+=0.90"
+          ); // D
+
+          // Bond growth timed to the approaches (growth multiplies computed length)
+          tl.to(
+            bonds[0].userData,
+            { growth: 1, duration: 0.6, ease: "back.out(1.2)" },
+            "assemble+=0.55"
+          ); // A-B
+          tl.to(
+            bonds[1].userData,
+            { growth: 1, duration: 0.6 },
+            "assemble+=0.90"
+          ); // B-C
+          tl.to(
+            bonds[2].userData,
+            { growth: 1, duration: 0.6 },
+            "assemble+=1.25"
+          ); // C-D
+
+          // Re-introduce very low drift once assembled
+          tl.add(() => {
+            driftAmpX = 0.0015;
+            driftAmpY = 0.0012;
+          }, "orbit-=0.05");
+
+          // Slow global orbit + camera ellipse (lights remain fixed)
+          tl.to(
+            molecule.rotation,
+            { y: "+=" + Math.PI * 0.6, duration: 2.5, ease: "none" },
+            "orbit"
+          );
+          tl.to(
+            camera.position,
+            {
+              x: 0.8,
+              z: 8.6,
+              duration: 2.5,
+              ease: "sine.inOut",
+              onUpdate: () => camera.lookAt(0, 0, 0),
+            },
+            "orbit"
+          );
+        }
+
+        // Hide poster once rendering is alive
+        setTimeout(() => posterEl && posterEl.classList.add("hidden"), 150);
+        statusEl.textContent = "Bonds visible + section pinned";
+        setTimeout(() => statusEl.remove(), 700);
+      } catch (err) {
+        console.error("WebGL init failed:", err);
+        statusEl.textContent = "WebGL not supported. Showing poster.";
+        if (rafId) cancelAnimationFrame(rafId);
+      }
+    </script>
+  </body>
+</html>
