@@ -204,13 +204,18 @@
         }
 
         const baseRadius = 0.5;
-        // --- Atoms (initial state) ---
+
+        // Root for everything in the molecule hero
         molecule = new THREE.Group();
         scene.add(molecule);
-        molecule.position.x = 1.2; // kept for later copy swap
+
+        const masterSurface = new THREE.Group(); // local Y ⟂ MASTERSURFACE
+        molecule.add(masterSurface);
+
         const centerGroup = new THREE.Group();
         const ringGroup = new THREE.Group();
-        molecule.add(centerGroup, ringGroup);
+        masterSurface.add(centerGroup, ringGroup);
+        masterSurface.rotation.set(Math.PI/1.5, -0.2, 0.0); 
 
         // Geometry radius must match baseRadius so bond halves start at the true surface
         const atomGeo = new THREE.SphereGeometry(baseRadius, 48, 48);
@@ -221,21 +226,35 @@
         center.scale.setScalar(1); // constant; no growth/tween
         centerGroup.add(center);
 
-        // Outer atoms (still start small; will grow 0.35 → 1 during assembly)
+        // Outer atoms (A..E) placed ON the MASTERSURFACE plane (z=0 in its local space).
+        // Depth differences now come from the plane tilt (PATCH A), not per-atom Z.
+        const Rplane = 2.2; // ring radius in the MASTERSURFACE plane
+        const baseAngle = Math.PI / 2; // A at top
+        const step = (2 * Math.PI) / 5;
+
+        const startRing = Array.from({ length: 5 }, (_, i) => {
+          const ang = baseAngle - i * step; // A,B,C,D,E around the circle
+          return new THREE.Vector3(
+            Math.cos(ang) * Rplane,
+            Math.sin(ang) * Rplane,
+            0
+          );
+        });
+
         const atoms = [
-          { id: "A", pos: new THREE.Vector3(-3.0, 0.5, 0.0), phase: 0.0 },
-          { id: "B", pos: new THREE.Vector3(3.0, -0.2, 0.0), phase: 0.73 },
-          { id: "C", pos: new THREE.Vector3(0.0, 2.2, 0.0), phase: 1.31 },
-          { id: "D", pos: new THREE.Vector3(0.0, -2.2, 0.0), phase: 2.07 },
-          { id: "E", pos: new THREE.Vector3(2.2, 1.4, 0.0), phase: 4.66 }, // new
-        ].map((d) => {
+          { id: "A" },
+          { id: "B" },
+          { id: "C" },
+          { id: "D" },
+          { id: "E" },
+        ].map((d, i) => {
           const m = new THREE.Mesh(atomGeo, atomMat);
-          m.position.copy(d.pos);
-          m.scale.setScalar(0.35); // <-- start small so we can grow 0.35 → 1.0
-          m.userData.phase = d.phase;
+          m.position.copy(startRing[i]); // A..E with planned depths
+          m.scale.setScalar(1); // no growth now (you disabled growth phase)
           ringGroup.add(m);
           return m;
         });
+
         // --- Targets & via control points (for assembly) ---
         // Snapshot *after* random spawn so we can tween from these
         const startPositions = atoms.map((m) => m.position.clone());
@@ -272,7 +291,7 @@
           aHalf.visible = bHalf.visible = false;
           // Parent halves to molecule root so they aren’t double-transformed
           molecule.add(aHalf, bHalf);
-          
+
           const pair = { a: aHalf, b: bHalf, growth: 0, outerIdx };
           bonds.push(pair);
           return pair;
@@ -284,9 +303,15 @@
         createCenterBond(2);
         createCenterBond(3);
         createCenterBond(4);
+        for (const b of bonds) {
+          b.growth = 1;
+          b.a.visible = b.b.visible = true;
+        }
 
         const UP = new THREE.Vector3(0, 1, 0);
         const tmpDir = new THREE.Vector3();
+
+        // Bonds should be present the whole time for this storyboard phase
 
         // temp vectors reused each call
         const tmpCw = new THREE.Vector3(); // center world
@@ -360,25 +385,17 @@
 
         // Micro-drift (very subtle, no Z)
         let t = 0;
-        let driftAmpX = 0.0025,
-          driftAmpY = 0.002; // << add amplitudes
         function render() {
           t += 0.01;
 
-          // subtle drift
-          for (let i = 0; i < atoms.length; i++) {
-            const m = atoms[i];
-            const ph = m.userData.phase || 0;
-            m.position.x += Math.sin(t * 0.52 + ph) * driftAmpX;
-            m.position.y += Math.sin(t * 0.37 + ph * 1.33) * driftAmpY;
-          }
-
-          // **Ensure world matrices reflect GSAP rotations before sampling positions**
+          // No drift (per spec) — atoms stay fixed unless GSAP rotates the ring
+          // Ensure transforms from GSAP are applied before we read positions
           scene.updateMatrixWorld(true);
 
-          // bonds follow actual world positions
+          // Keep bonds glued to both ends every frame
           for (let i = 0; i < bonds.length; i++) positionCenterBond(bonds[i]);
 
+          // Draw and schedule next frame
           renderer.render(scene, camera);
           rafId = requestAnimationFrame(render);
         }
@@ -420,176 +437,28 @@
           },
           { passive: true }
         );
+        onResize();
 
         // Master GSAP timeline: pin + scrub + assembly + orbit
+        // Master GSAP timeline: pin + scrub + single-step rotation (A→B→C→D→E→A)
         if (window.gsap && window.ScrollTrigger) {
           gsap.registerPlugin(ScrollTrigger);
           const tl = gsap.timeline({
-            defaults: { ease: "power2.out" },
+            defaults: { ease: "none" }, // strict, linear mapping to scroll
             scrollTrigger: {
               trigger: "#hero",
               start: "top top",
-              end: "+=180%",
+              end: "+=180%", // keep your existing section length
               scrub: true,
               pin: true,
               // markers: true,
             },
           });
 
-          // Labels for clarity
-          tl.addLabel("idle", 0.0)
-            .addLabel("assemble", 0.25)
-            .addLabel("orbit", 0.75)
-            .addLabel("swap", 0.82); // when copy swaps and molecule relocates
-          tl.add(() => {
-            const d = (i, j) =>
-              atoms[i].position.distanceTo(atoms[j].position).toFixed(3);
-            console.log(
-              "edge lengths:",
-              d(0, 1),
-              d(1, 2),
-              d(2, 3),
-              d(3, 4),
-              d(4, 0)
-            );
-          }, "orbit");
-
-          // Disable drift during precise pathing
-          tl.add(() => {
-            driftAmpX = 0;
-            driftAmpY = 0;
-          }, "assemble-=0.05");
-
-          // Helper: move along curve and grow from 0.35 → 1 while traveling
-          function moveAndGrow(i, at, durMove = 1.2, durGrow = 1.0) {
-            moveAlongQuadratic(
-              i,
-              startPositions[i],
-              vias[i],
-              targets[i],
-              tl,
-              durMove,
-              at
-            );
-            tl.to(
-              atoms[i].scale,
-              { x: 1, y: 1, z: 1, duration: durGrow, ease: "power2.out" },
-              at
-            );
-          }
-
-          // Staggered assembly
-          moveAndGrow(0, "assemble");
-          moveAndGrow(1, "assemble+=0.20");
-          moveAndGrow(2, "assemble+=0.55");
-          moveAndGrow(3, "assemble+=0.90");
-          moveAndGrow(4, "assemble+=1.15");
-
-          // Bonds: grow from both ends ~midway through their adjacent motion
-          tl.to(
-            bonds[0],
-            {
-              growth: 1,
-              duration: 0.7,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[0].a.visible = bonds[0].b.visible = true;
-              },
-            },
-            "assemble+=0.60"
-          ); // 0-1
-          tl.to(
-            bonds[1],
-            {
-              growth: 1,
-              duration: 0.7,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[1].a.visible = bonds[1].b.visible = true;
-              },
-            },
-            "assemble+=0.95"
-          ); // 1-2
-          tl.to(
-            bonds[2],
-            {
-              growth: 1,
-              duration: 0.7,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[2].a.visible = bonds[2].b.visible = true;
-              },
-            },
-            "assemble+=1.25"
-          ); // 2-3
-          tl.to(
-            bonds[3],
-            {
-              growth: 1,
-              duration: 0.7,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[3].a.visible = bonds[3].b.visible = true;
-              },
-            },
-            "assemble+=1.40"
-          ); // 3-4
-          tl.to(
-            bonds[4],
-            {
-              growth: 1,
-              duration: 0.7,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[4].a.visible = bonds[4].b.visible = true;
-              },
-            },
-            "assemble+=1.55"
-          ); // 4-0
-
-          // Re-introduce subtle drift once formed
-          tl.add(() => {
-            driftAmpX = 0.0015;
-            driftAmpY = 0.0012;
-          }, "orbit-=0.05");
-
-          // Slow global orbit + shallow camera ellipse (lights remain fixed)
-          tl.to(
-            ringGroup.rotation,
-            { y: "+=" + Math.PI * 0.6, duration: 2.5, ease: "none" },
-            "orbit"
-          );
-          tl.to(
-            camera.position,
-            {
-              x: 0.8,
-              z: 8.6,
-              duration: 2.5,
-              ease: "sine.inOut",
-              onUpdate: () => camera.lookAt(0, 0, 0),
-            },
-            "orbit"
-          );
-
-          // --- Copy + relocation per client ---
-          // Fade out headline, slide molecule **into** that left space, fade in paragraph on right
-          tl.to(
-            "#copy1",
-            { autoAlpha: 0, duration: 0.45, ease: "power1.out" },
-            "swap"
-          );
-          tl.to(
-            molecule.position,
-            { x: -1.3, duration: 1.4, ease: "power2.inOut" },
-            "swap"
-          ); // move right → left
-          tl.to(
-            "#copy2",
-            { autoAlpha: 1, duration: 0.55, ease: "power1.out" },
-            "swap+=0.35"
-          );
+          // Exactly one anticlockwise step: -2π/5 (A→B shift)
+          const fullTurn = -Math.PI * 2; // anticlockwise; flip sign if your camera framing needs the opposite
+          tl.to(masterSurface.rotation, { z: "+=" + fullTurn, duration: 1 });
         }
-
         // Hide poster once rendering is alive
         setTimeout(() => posterEl && posterEl.classList.add("hidden"), 150);
         statusEl.textContent = "Bonds visible + section pinned";
