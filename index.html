@@ -207,11 +207,21 @@
         // --- Atoms (initial state) ---
         molecule = new THREE.Group();
         scene.add(molecule);
-        molecule.position.x = 1.2; // keep slide-left behavior later
+        molecule.position.x = 1.2; // kept for later copy swap
+        const centerGroup = new THREE.Group();
+        const ringGroup = new THREE.Group();
+        molecule.add(centerGroup, ringGroup);
 
         // Geometry radius must match baseRadius so bond halves start at the true surface
         const atomGeo = new THREE.SphereGeometry(baseRadius, 48, 48);
 
+        // Central atom: fixed position & constant scale (storyboard panel 1)
+        const center = new THREE.Mesh(atomGeo, atomMat);
+        center.position.set(0, 0, 0);
+        center.scale.setScalar(1); // constant; no growth/tween
+        centerGroup.add(center);
+
+        // Outer atoms (still start small; will grow 0.35 → 1 during assembly)
         const atoms = [
           { id: "A", pos: new THREE.Vector3(-3.0, 0.5, 0.0), phase: 0.0 },
           { id: "B", pos: new THREE.Vector3(3.0, -0.2, 0.0), phase: 0.73 },
@@ -223,7 +233,7 @@
           m.position.copy(d.pos);
           m.scale.setScalar(0.35); // <-- start small so we can grow 0.35 → 1.0
           m.userData.phase = d.phase;
-          molecule.add(m);
+          ringGroup.add(m);
           return m;
         });
         // --- Targets & via control points (for assembly) ---
@@ -253,63 +263,77 @@
 
         // Bonds (two halves per connection; growth from each atom’s surface toward center)
         const halfGeo = new THREE.CylinderGeometry(0.12, 0.12, 1, 24);
-        halfGeo.translate(0, 0.5, 0); // base at origin; extends along +Y (critical for end-growth)
-        const bonds = []; // array of { a:Mesh, b:Mesh, growth:number, aIdx:number, bIdx:number }
+        halfGeo.translate(0, 0.5, 0);
+        const bonds = []; // array of { a:Mesh, b:Mesh, growth:number, outerIdx:number }
 
-        function createBondPair(aIdx, bIdx) {
-          const aHalf = new THREE.Mesh(halfGeo, bondMat);
-          const bHalf = new THREE.Mesh(halfGeo, bondMat);
-          aHalf.visible = bHalf.visible = false; // fully hidden until growth starts
+        function createCenterBond(outerIdx) {
+          const aHalf = new THREE.Mesh(halfGeo, bondMat); // center-side half
+          const bHalf = new THREE.Mesh(halfGeo, bondMat); // outer-side half
+          aHalf.visible = bHalf.visible = false;
+          // Parent halves to molecule root so they aren’t double-transformed
           molecule.add(aHalf, bHalf);
-          const pair = { a: aHalf, b: bHalf, growth: 0, aIdx, bIdx };
+          
+          const pair = { a: aHalf, b: bHalf, growth: 0, outerIdx };
           bonds.push(pair);
           return pair;
         }
 
-        // Ring connections for 5 atoms: 0-1-2-3-4-0  (equal-length pentagon edges)
-        createBondPair(0, 1);
-        createBondPair(1, 2);
-        createBondPair(2, 3);
-        createBondPair(3, 4);
-        createBondPair(4, 0);
+        // Create five center↔outer bonds (order will be handled by the timeline)
+        createCenterBond(0);
+        createCenterBond(1);
+        createCenterBond(2);
+        createCenterBond(3);
+        createCenterBond(4);
 
         const UP = new THREE.Vector3(0, 1, 0);
         const tmpDir = new THREE.Vector3();
 
-        function positionBondPair(pair) {
-          const a = atoms[pair.aIdx].position;
-          const b = atoms[pair.bIdx].position;
+        // temp vectors reused each call
+        const tmpCw = new THREE.Vector3(); // center world
+        const tmpOw = new THREE.Vector3(); // outer world
+        const tmpCl = new THREE.Vector3(); // center in molecule space
+        const tmpOl = new THREE.Vector3(); // outer in molecule space
 
-          // Direction and center distance
-          tmpDir.subVectors(b, a);
+        function positionCenterBond(pair) {
+          // 1) sample **world** positions
+          center.getWorldPosition(tmpCw);
+          atoms[pair.outerIdx].getWorldPosition(tmpOw);
+
+          // 2) convert to the bond's parent space (molecule)
+          tmpCl.copy(tmpCw);
+          molecule.worldToLocal(tmpCl);
+          tmpOl.copy(tmpOw);
+          molecule.worldToLocal(tmpOl);
+
+          // 3) direction & distances in **molecule space**
+          tmpDir.subVectors(tmpOl, tmpCl);
           const centerDist = tmpDir.length();
           const g = pair.growth;
 
-          // Use current atom radii (baseRadius * current scale) so halves start at surfaces
-          const rA = baseRadius * atoms[pair.aIdx].scale.x;
-          const rB = baseRadius * atoms[pair.bIdx].scale.x;
+          const rC = baseRadius * center.scale.x;
+          const rO = baseRadius * atoms[pair.outerIdx].scale.x;
 
-          // Surface-to-surface distance (avoid penetrating spheres)
-          const coreLen = Math.max(0, centerDist - (rA + rB));
+          const coreLen = Math.max(0, centerDist - (rC + rO));
           const halfLen = coreLen * 0.5;
 
           if (halfLen <= 1e-6 || g <= 0) {
             pair.a.visible = pair.b.visible = false;
             return;
           }
+
           const dir = tmpDir.clone().normalize();
 
-          // Half from A side: start at A surface, aim toward center
+          // Center-side half (aiming outward from **tmpCl**)
           pair.a.visible = true;
-          pair.a.position.copy(a).add(dir.clone().multiplyScalar(rA));
+          pair.a.position.copy(tmpCl).add(dir.clone().multiplyScalar(rC));
           pair.a.quaternion.setFromUnitVectors(UP, dir);
           pair.a.scale.set(1, halfLen * g, 1);
 
-          // Half from B side: start at B surface, aim toward center
+          // Outer-side half (aiming inward from **tmpOl**)
           pair.b.visible = true;
-          pair.b.position.copy(b).add(dir.clone().multiplyScalar(-rB));
-          const negDir = dir.clone().multiplyScalar(-1);
-          pair.b.quaternion.setFromUnitVectors(UP, negDir);
+          pair.b.position.copy(tmpOl).add(dir.clone().multiplyScalar(-rO));
+          const neg = dir.clone().multiplyScalar(-1);
+          pair.b.quaternion.setFromUnitVectors(UP, neg);
           pair.b.scale.set(1, halfLen * g, 1);
         }
 
@@ -340,18 +364,22 @@
           driftAmpY = 0.002; // << add amplitudes
         function render() {
           t += 0.01;
+
+          // subtle drift
           for (let i = 0; i < atoms.length; i++) {
             const m = atoms[i];
             const ph = m.userData.phase || 0;
-            const dx = Math.sin(t * 0.52 + ph) * driftAmpX; // << use amplitudes
-            const dy = Math.sin(t * 0.37 + ph * 1.33) * driftAmpY;
-            m.position.x += dx;
-            m.position.y += dy;
+            m.position.x += Math.sin(t * 0.52 + ph) * driftAmpX;
+            m.position.y += Math.sin(t * 0.37 + ph * 1.33) * driftAmpY;
           }
-          for (let i = 0; i < bonds.length; i++) positionBondPair(bonds[i]);
+
+          // **Ensure world matrices reflect GSAP rotations before sampling positions**
+          scene.updateMatrixWorld(true);
+
+          // bonds follow actual world positions
+          for (let i = 0; i < bonds.length; i++) positionCenterBond(bonds[i]);
 
           renderer.render(scene, camera);
-          onResize();
           rafId = requestAnimationFrame(render);
         }
         rafId = requestAnimationFrame(render);
@@ -527,7 +555,7 @@
 
           // Slow global orbit + shallow camera ellipse (lights remain fixed)
           tl.to(
-            molecule.rotation,
+            ringGroup.rotation,
             { y: "+=" + Math.PI * 0.6, duration: 2.5, ease: "none" },
             "orbit"
           );
