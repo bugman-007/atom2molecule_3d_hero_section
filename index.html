@@ -141,6 +141,13 @@
       const statusEl = document.getElementById("status");
       const posterEl = document.querySelector(".poster");
 
+      // Cap gating & seating
+      const CAP_VIS_EPS = 0.03; // hide caps/halves when growth <= 3%
+      const CAP_SHRINK_IN = 0.08; // cap starts shrinking below this
+      const CAP_SHRINK_OUT = 0.18; // cap fully grown above this
+      const CAP_INSET = 0.02; // push caps slightly into spheres (world units)
+      const CAP_SCALE = 1.06; // final cap scale for a soft fillet silhouette
+
       let renderer, scene, camera, molecule, rafId;
 
       try {
@@ -158,6 +165,36 @@
         renderer.toneMapping = THREE.NoToneMapping;
         renderer.setClearColor(0x053b6c, 1);
         heroEl.prepend(renderer.domElement);
+        // Keep the molecule comfortably framed across devices (no group scaling)
+        function updateCameraForViewport() {
+          const w = window.innerWidth;
+
+          // Baseline: desktop wide screens
+          let z = 8.0;
+
+          // Tablets / small laptops
+          if (w <= 1280) z = 8.4;
+
+          // Large phones / phablets
+          if (w <= 900) z = 8.8;
+
+          // Narrow phones
+          if (w <= 600) z = 9.2;
+
+          // Very narrow phones (<= 380–420 px)
+          if (w <= 420) z = 9.6;
+
+          camera.position.z = z;
+          camera.updateProjectionMatrix();
+        }
+
+        // Accurate output & highlights for transmissive materials
+        renderer.outputColorSpace = THREE.SRGBColorSpace; // true sRGB output
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; // stable highlight rolloff
+        renderer.toneMappingExposure = 1.0;
+        // Keep light math physically reasonable (balances with ACES)
+        renderer.physicallyCorrectLights = true;
+        renderer.sortObjects = true;
 
         // Scene & camera
         scene = new THREE.Scene();
@@ -179,30 +216,23 @@
         scene.add(key, rim, amb);
 
         // Materials
+        const baseColor = 0x2c5aa0;
         const atomMat = new THREE.MeshPhysicalMaterial({
-          color: 0x2c5aa0,
-          roughness: 0.25,
-          metalness: 0.05,
-          clearcoat: 0.85,
-          clearcoatRoughness: 0.25,
-          transmission: 0.35, // ← glass-like without changing hue
-          thickness: 0.6,
-          ior: 1.45,
-          attenuationColor: 0x2c5aa0,
-          attenuationDistance: 8,
-          transparent: true,
+          color: baseColor, // keep your brand hue
+          roughness: 0.22, // a touch smoother for cleaner glints
+          metalness: 0.0, // metalness off for glass (keeps color honest)
+          clearcoat: 1.0, // stronger clearcoat for crisp specular
+          clearcoatRoughness: 0.08, // small blur to avoid mirror look
+          transmission: 0.55, // a bit more glassy without washing out
+          ior: 1.22, // realistic-ish refractive index for acrylic/glass mix
+          thickness: 0.28, // slightly thicker body
+          attenuationColor: new THREE.Color(baseColor), // tint attenuation by base
+          attenuationDistance: 2.6, // avoid darkening on mobile DPR
         });
-        const bondMat = new THREE.MeshPhysicalMaterial({
-          color: 0x87a9d8,
-          roughness: 0.35,
-          metalness: 0.05,
-          clearcoat: 0.5,
-          clearcoatRoughness: 0.35,
-          transmission: 0.25,
-          thickness: 0.5,
-          ior: 1.45,
-          transparent: true,
-        });
+        const bondMat = atomMat.clone();
+        // Bonds can read a hair more solid so joints remain readable at small sizes
+        bondMat.transmission = 0.48;
+        bondMat.thickness = 0.24;
         atomMat.transparent = true;
         bondMat.transparent = true;
         // atomMat.depthWrite = false;
@@ -275,19 +305,21 @@
         // Snapshot *after* random spawn so we can tween from these
         const startPositions = atoms.map((m) => m.position.clone());
 
-        // Trigonal-bipyramidal (non-coplanar) targets: 2 axial (±Z), 3 equatorial (XY @ 120°)
-        const R = 1.8; // equal bond length to center
+        // Non-coplanar hub-and-spokes (1 center + 5 outers):
+        // Use two **axial** positions (±Z) and three **equatorial** on XY.
+        // Keeps all center↔outer distances == R.
+        const R = 1.8;
         const targets = [
-          new THREE.Vector3(0.0, 0.0, R), // 0 (A) axial front
-          new THREE.Vector3(0.0, 0.0, -R), // 1 (B) axial back
-          new THREE.Vector3(0.0, R, 0.0), // 2 (C) equatorial
+          new THREE.Vector3(0.0, 0.0, R), // 0 axial +Z
+          new THREE.Vector3(0.0, 0.0, -R), // 1 axial −Z
+          new THREE.Vector3(0.0, R, 0.0), // 2 equatorial
           new THREE.Vector3(
-            R * Math.cos(-Math.PI / 6), // 3 (D) equatorial
+            R * Math.cos(-Math.PI / 6), // 3 equatorial
             R * Math.sin(-Math.PI / 6),
             0.0
           ),
           new THREE.Vector3(
-            R * Math.cos((7 * Math.PI) / 6), // 4 (E) equatorial
+            R * Math.cos((7 * Math.PI) / 6), // 4 equatorial
             R * Math.sin((7 * Math.PI) / 6),
             0.0
           ),
@@ -331,12 +363,23 @@
           aHalf.visible = bHalf.visible = false;
           // Parent halves to molecule root so they aren’t double-transformed
           molecule.add(aHalf, bHalf);
+          aHalf.renderOrder = 1;
+          bHalf.renderOrder = 1;
+
+          const capA = new THREE.Mesh(capGeo, bondMat);
+          const capB = new THREE.Mesh(capGeo, bondMat);
+          capA.visible = capB.visible = false;
+          molecule.add(capA, capB);
+          capA.renderOrder = 1;
+          capB.renderOrder = 1;
 
           // Meniscus caps (center-side & outer-side)
           const capC = new THREE.Mesh(capGeo, bondMat);
           const capO = new THREE.Mesh(capGeo, bondMat);
           capC.visible = capO.visible = false;
           molecule.add(capC, capO);
+          capC.renderOrder = 1;
+          capO.renderOrder = 1;
 
           // Keep glass draw order stable: center → bonds/caps → outers
           aHalf.renderOrder = bHalf.renderOrder = 1;
@@ -391,6 +434,21 @@
           tmpDir.subVectors(tmpOl, tmpCl);
           const centerDist = tmpDir.length();
           const g = pair.growth;
+          const show = g > CAP_VIS_EPS;
+
+          pair.a.visible = show;
+          pair.b.visible = show;
+          pair.capA.visible = show;
+          pair.capB.visible = show;
+
+          // Smooth shrink/grow of caps so they never linger as dots
+          const t = Math.min(
+            Math.max((g - CAP_SHRINK_IN) / (CAP_SHRINK_OUT - CAP_SHRINK_IN), 0),
+            1
+          );
+          const s = CAP_SCALE * t;
+          pair.capA.scale.setScalar(s);
+          pair.capB.scale.setScalar(s);
 
           const rC = baseRadius * center.scale.x;
           const rO = baseRadius * atoms[pair.outerIdx].scale.x;
@@ -436,7 +494,7 @@
             {
               t: 1,
               duration: dur,
-              ease: "power2.out",
+              ease: "power3.out",
               onUpdate: () => {
                 const t = proxy.t,
                   it = 1 - t;
@@ -507,143 +565,218 @@
         onResize();
 
         // Master GSAP timeline: pin + scrub + assembly + orbit
-        // Master GSAP timeline: pin + scrub + single-step rotation (A→B→C→D→E→A)
         if (window.gsap && window.ScrollTrigger) {
+          const PREFERS_REDUCED = window.matchMedia(
+            "(prefers-reduced-motion: reduce)"
+          ).matches;
+
+          updateCameraForViewport();
+
+          // Final static state (no scroll-scrub, no rotation)
+          function finalizeStatic() {
+            atoms.forEach((m, i) => m.position.copy(targets[i]));
+
+            // Fully grow all bonds and show caps
+            bonds.forEach((pair) => {
+              pair.growth = 1;
+              if (pair.a) pair.a.visible = true;
+              if (pair.b) pair.b.visible = true;
+              if (pair.capA) pair.capA.visible = true;
+              if (pair.capB) pair.capB.visible = true;
+            });
+
+            // No rotation in reduced-motion
+            masterSurface.rotation.set(0, 0, 0);
+
+            // Copy: show final message only
+            gsap.set("#copy1", { opacity: 0, y: -10 });
+            gsap.set("#copy2", { opacity: 1, y: 0 });
+          }
           // Master GSAP timeline: full 3D rotation + sequential bond joins
-          const tl = gsap.timeline({
-            defaults: { ease: "none" },
-            scrollTrigger: {
-              trigger: "#hero",
-              start: "top top",
-              end: "+=180%",
-              scrub: true,
-              pin: true,
-              // markers: true,
-            },
-          });
+          if (PREFERS_REDUCED) {
+            // Accessibility: present final composition as a static hero
+            finalizeStatic();
+            if (rafId) {
+              cancelAnimationFrame(rafId);
+              rafId = 0;
+            } // stop rendering
+          } else {
+            const tl = gsap.timeline({
+              defaults: { ease: "none" },
+              scrollTrigger: {
+                trigger: heroEl,
+                start: "top top",
+                end: "+=180%",
+                scrub: true,
+                pin: true,
+                anticipatePin: 1, // smoother pin handoff
+                invalidateOnRefresh: true, // recalc on resize/orientation
+                onEnter: () => {
+                  if (!rafId) rafId = requestAnimationFrame(render);
+                },
+                onEnterBack: () => {
+                  if (!rafId) rafId = requestAnimationFrame(render);
+                },
+                onLeave: () => {
+                  if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = 0;
+                  }
+                },
+                onLeaveBack: () => {
+                  if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = 0;
+                  }
+                },
+              },
+            });
+            tl.set("#copy1", { opacity: 0, y: 12 });
+            tl.set("#copy2", { opacity: 0, y: 12 });
 
-          // 3D spin over the whole scroll: yaw 360°, gentle pitch/roll that return to start
-          const yawTurn = Math.PI * 2;
-          tl.to(masterSurface.rotation, { y: "+=" + yawTurn, duration: 1 }, 0);
-          tl.to(
-            masterSurface.rotation,
-            { x: "+=0.28", z: "-=0.22", duration: 0.5, ease: "sine.inOut" },
-            0
-          );
-          tl.to(
-            masterSurface.rotation,
-            { x: "-=0.28", z: "+=0.22", duration: 0.5, ease: "sine.inOut" },
-            0.5
-          );
+            // 3D spin over the whole scroll: yaw 360°, gentle pitch/roll that return to start
+            const yawTurn = Math.PI * 2;
+            tl.to(
+              masterSurface.rotation,
+              { y: "+=" + yawTurn, duration: 1 },
+              0
+            );
+            tl.to(
+              masterSurface.rotation,
+              { x: "+=0.28", z: "-=0.22", duration: 0.5, ease: "sine.inOut" },
+              0
+            );
+            tl.to(
+              masterSurface.rotation,
+              { x: "-=0.28", z: "+=0.22", duration: 0.5, ease: "sine.inOut" },
+              0.5
+            );
 
-          // Sequential joins: five equal beats across the scroll
-          const beat = 1 / 5;
-          const moveDur = beat * 1.2;
-          moveAlongQuadratic(
-            0,
-            startPositions[0],
-            vias[0],
-            targets[0],
-            tl,
-            moveDur,
-            0 * beat
-          );
-          moveAlongQuadratic(
-            1,
-            startPositions[1],
-            vias[1],
-            targets[1],
-            tl,
-            moveDur,
-            1 * beat
-          );
-          moveAlongQuadratic(
-            2,
-            startPositions[2],
-            vias[2],
-            targets[2],
-            tl,
-            moveDur,
-            2 * beat
-          );
-          moveAlongQuadratic(
-            3,
-            startPositions[3],
-            vias[3],
-            targets[3],
-            tl,
-            moveDur,
-            3 * beat
-          );
-          moveAlongQuadratic(
-            4,
-            startPositions[4],
-            vias[4],
-            targets[4],
-            tl,
-            moveDur,
-            4 * beat
-          );
-          tl.to(
-            bonds[0],
-            {
-              growth: 1,
-              duration: beat * 0.9,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[0].a.visible = bonds[0].b.visible = true;
+            tl.to(
+              "#copy1",
+              { opacity: 1, y: 0, duration: 0.12, ease: "power2.out" },
+              0.22
+            );
+            tl.to(
+              "#copy1",
+              { opacity: 0, y: -10, duration: 0.12, ease: "power1.out" },
+              0.78
+            );
+            tl.to(
+              "#copy2",
+              { opacity: 1, y: 0, duration: 0.18, ease: "power2.out" },
+              0.82
+            );
+
+            // Sequential joins: five equal beats across the scroll
+            const beat = 1 / 5;
+            const moveDur = beat * 1.2;
+            moveAlongQuadratic(
+              0,
+              startPositions[0],
+              vias[0],
+              targets[0],
+              tl,
+              moveDur,
+              0 * beat
+            );
+            moveAlongQuadratic(
+              1,
+              startPositions[1],
+              vias[1],
+              targets[1],
+              tl,
+              moveDur,
+              1 * beat
+            );
+            moveAlongQuadratic(
+              2,
+              startPositions[2],
+              vias[2],
+              targets[2],
+              tl,
+              moveDur,
+              2 * beat
+            );
+            moveAlongQuadratic(
+              3,
+              startPositions[3],
+              vias[3],
+              targets[3],
+              tl,
+              moveDur,
+              3 * beat
+            );
+            moveAlongQuadratic(
+              4,
+              startPositions[4],
+              vias[4],
+              targets[4],
+              tl,
+              moveDur,
+              4 * beat
+            );
+            tl.to(
+              bonds[0],
+              {
+                growth: 1,
+                duration: beat * 0.9,
+                ease: "power2.out",
+                onStart: () => {
+                  bonds[0].a.visible = bonds[0].b.visible = true;
+                },
               },
-            },
-            0 * beat + beat * 0.7
-          );
-          tl.to(
-            bonds[1],
-            {
-              growth: 1,
-              duration: beat * 0.9,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[1].a.visible = bonds[1].b.visible = true;
+              0 * beat + beat * 0.7
+            );
+            tl.to(
+              bonds[1],
+              {
+                growth: 1,
+                duration: beat * 0.9,
+                ease: "power2.out",
+                onStart: () => {
+                  bonds[1].a.visible = bonds[1].b.visible = true;
+                },
               },
-            },
-            1 * beat + beat * 0.7
-          );
-          tl.to(
-            bonds[2],
-            {
-              growth: 1,
-              duration: beat * 0.9,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[2].a.visible = bonds[2].b.visible = true;
+              1 * beat + beat * 0.7
+            );
+            tl.to(
+              bonds[2],
+              {
+                growth: 1,
+                duration: beat * 0.9,
+                ease: "power2.out",
+                onStart: () => {
+                  bonds[2].a.visible = bonds[2].b.visible = true;
+                },
               },
-            },
-            2 * beat + beat * 0.7
-          );
-          tl.to(
-            bonds[3],
-            {
-              growth: 1,
-              duration: beat * 0.9,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[3].a.visible = bonds[3].b.visible = true;
+              2 * beat + beat * 0.7
+            );
+            tl.to(
+              bonds[3],
+              {
+                growth: 1,
+                duration: beat * 0.9,
+                ease: "power2.out",
+                onStart: () => {
+                  bonds[3].a.visible = bonds[3].b.visible = true;
+                },
               },
-            },
-            3 * beat + beat * 0.7
-          );
-          tl.to(
-            bonds[4],
-            {
-              growth: 1,
-              duration: beat * 0.9,
-              ease: "power2.out",
-              onStart: () => {
-                bonds[4].a.visible = bonds[4].b.visible = true;
+              3 * beat + beat * 0.7
+            );
+            tl.to(
+              bonds[4],
+              {
+                growth: 1,
+                duration: beat * 0.9,
+                ease: "power2.out",
+                onStart: () => {
+                  bonds[4].a.visible = bonds[4].b.visible = true;
+                },
               },
-            },
-            4 * beat + beat * 0.7
-          );
+              4 * beat + beat * 0.7
+            );
+          }
         }
         // Hide poster once rendering is alive
         setTimeout(() => posterEl && posterEl.classList.add("hidden"), 150);
