@@ -181,18 +181,32 @@
         // Materials
         const atomMat = new THREE.MeshPhysicalMaterial({
           color: 0x2c5aa0,
-          roughness: 0.28,
-          metalness: 0.08,
-          clearcoat: 0.6,
-          clearcoatRoughness: 0.4,
+          roughness: 0.25,
+          metalness: 0.05,
+          clearcoat: 0.85,
+          clearcoatRoughness: 0.25,
+          transmission: 0.35, // ← glass-like without changing hue
+          thickness: 0.6,
+          ior: 1.45,
+          attenuationColor: 0x2c5aa0,
+          attenuationDistance: 8,
+          transparent: true,
         });
         const bondMat = new THREE.MeshPhysicalMaterial({
           color: 0x87a9d8,
           roughness: 0.35,
           metalness: 0.05,
-          clearcoat: 0.3,
-          clearcoatRoughness: 0.5,
+          clearcoat: 0.5,
+          clearcoatRoughness: 0.35,
+          transmission: 0.25,
+          thickness: 0.5,
+          ior: 1.45,
+          transparent: true,
         });
+        atomMat.transparent = true;
+        bondMat.transparent = true;
+        // atomMat.depthWrite = false;
+        // bondMat.depthWrite = false;
 
         // Deterministic random so the initial scatter is stable per reload
         function seeded(i) {
@@ -215,7 +229,7 @@
         const centerGroup = new THREE.Group();
         const ringGroup = new THREE.Group();
         masterSurface.add(centerGroup, ringGroup);
-        masterSurface.rotation.set(Math.PI/1.5, -0.2, 0.0); 
+        masterSurface.rotation.set(Math.PI / 1.5, -0.2, 0.0);
 
         // Geometry radius must match baseRadius so bond halves start at the true surface
         const atomGeo = new THREE.SphereGeometry(baseRadius, 48, 48);
@@ -225,6 +239,7 @@
         center.position.set(0, 0, 0);
         center.scale.setScalar(1); // constant; no growth/tween
         centerGroup.add(center);
+        center.renderOrder = 0;
 
         // Outer atoms (A..E) placed ON the MASTERSURFACE plane (z=0 in its local space).
         // Depth differences now come from the plane tilt (PATCH A), not per-atom Z.
@@ -252,6 +267,7 @@
           m.position.copy(startRing[i]); // A..E with planned depths
           m.scale.setScalar(1); // no growth now (you disabled growth phase)
           ringGroup.add(m);
+          m.renderOrder = 2;
           return m;
         });
 
@@ -259,31 +275,55 @@
         // Snapshot *after* random spawn so we can tween from these
         const startPositions = atoms.map((m) => m.position.clone());
 
-        // Regular pentagon radius → equal center-to-center distances
-        const R = 1.8; // ring radius (works well with baseRadius=0.1 and camera z=8)
-        const sin36 = 0.5877852522924731,
-          cos36 = 0.8090169943749475;
+        // Trigonal-bipyramidal (non-coplanar) targets: 2 axial (±Z), 3 equatorial (XY @ 120°)
+        const R = 1.8; // equal bond length to center
         const targets = [
-          new THREE.Vector3(0.0, R, 0.0), // 0 top
-          new THREE.Vector3(sin36 * R, cos36 * R, 0.0), // 1
-          new THREE.Vector3(sin36 * R, -cos36 * R, 0.0), // 2
-          new THREE.Vector3(-sin36 * R, -cos36 * R, 0.0), // 3
-          new THREE.Vector3(-sin36 * R, cos36 * R, 0.0), // 4
+          new THREE.Vector3(0.0, 0.0, R), // 0 (A) axial front
+          new THREE.Vector3(0.0, 0.0, -R), // 1 (B) axial back
+          new THREE.Vector3(0.0, R, 0.0), // 2 (C) equatorial
+          new THREE.Vector3(
+            R * Math.cos(-Math.PI / 6), // 3 (D) equatorial
+            R * Math.sin(-Math.PI / 6),
+            0.0
+          ),
+          new THREE.Vector3(
+            R * Math.cos((7 * Math.PI) / 6), // 4 (E) equatorial
+            R * Math.sin((7 * Math.PI) / 6),
+            0.0
+          ),
         ];
 
-        // Gentle approach arcs (shallow Z for comfort)
+        // Gentle 3D approach arcs (keep Z modest; axial paths bow toward ±Z)
         const vias = {
-          0: new THREE.Vector3(0.3, R * 0.75, 0.25),
-          1: new THREE.Vector3(R * 0.9, 0.6, 0.35),
-          2: new THREE.Vector3(R * 0.5, -0.9, -0.3),
-          3: new THREE.Vector3(-R * 0.5, -0.9, 0.25),
-          4: new THREE.Vector3(-R * 0.9, 0.6, -0.3),
+          0: new THREE.Vector3(
+            startPositions[0].x * 0.6,
+            startPositions[0].y * 0.6,
+            R * 0.4
+          ),
+          1: new THREE.Vector3(
+            startPositions[1].x * 0.6,
+            startPositions[1].y * 0.6,
+            -R * 0.4
+          ),
+          2: new THREE.Vector3(targets[2].x * 0.6, targets[2].y * 0.6, -0.22),
+          3: new THREE.Vector3(targets[3].x * 0.6, targets[3].y * 0.6, 0.22),
+          4: new THREE.Vector3(targets[4].x * 0.6, targets[4].y * 0.6, -0.18),
         };
 
-        // Bonds (two halves per connection; growth from each atom’s surface toward center)
-        const halfGeo = new THREE.CylinderGeometry(0.12, 0.12, 1, 24);
+        // Bond / cap dimensions (keep caps slightly fuller than the rod for a meniscus look)
+        const bondRadius = 0.12;
+        const halfGeo = new THREE.CylinderGeometry(
+          bondRadius,
+          bondRadius,
+          1,
+          24
+        );
         halfGeo.translate(0, 0.5, 0);
-        const bonds = []; // array of { a:Mesh, b:Mesh, growth:number, outerIdx:number }
+
+        // Meniscus/fillet: a small sphere used as a cap at each sphere↔rod interface
+        const capGeo = new THREE.SphereGeometry(bondRadius * 1.15, 24, 18);
+
+        const bonds = []; // { a, b, capA, capB, growth, outerIdx }
 
         function createCenterBond(outerIdx) {
           const aHalf = new THREE.Mesh(halfGeo, bondMat); // center-side half
@@ -292,7 +332,24 @@
           // Parent halves to molecule root so they aren’t double-transformed
           molecule.add(aHalf, bHalf);
 
-          const pair = { a: aHalf, b: bHalf, growth: 0, outerIdx };
+          // Meniscus caps (center-side & outer-side)
+          const capC = new THREE.Mesh(capGeo, bondMat);
+          const capO = new THREE.Mesh(capGeo, bondMat);
+          capC.visible = capO.visible = false;
+          molecule.add(capC, capO);
+
+          // Keep glass draw order stable: center → bonds/caps → outers
+          aHalf.renderOrder = bHalf.renderOrder = 1;
+          capC.renderOrder = capO.renderOrder = 1;
+
+          const pair = {
+            a: aHalf,
+            b: bHalf,
+            capA: capC,
+            capB: capO,
+            growth: 0,
+            outerIdx,
+          };
           bonds.push(pair);
           return pair;
         }
@@ -304,8 +361,8 @@
         createCenterBond(3);
         createCenterBond(4);
         for (const b of bonds) {
-          b.growth = 1;
-          b.a.visible = b.b.visible = true;
+          b.growth = 0;
+          b.a.visible = b.b.visible = false;
         }
 
         const UP = new THREE.Vector3(0, 1, 0);
@@ -360,6 +417,16 @@
           const neg = dir.clone().multiplyScalar(-1);
           pair.b.quaternion.setFromUnitVectors(UP, neg);
           pair.b.scale.set(1, halfLen * g, 1);
+
+          // Meniscus caps at each interface (visible once growth begins)
+          const showCap = g > 0.001;
+
+          // Place caps right where the rod meets each sphere surface
+          pair.capA.visible = showCap;
+          pair.capA.position.copy(tmpCl).add(dir.clone().multiplyScalar(rC));
+
+          pair.capB.visible = showCap;
+          pair.capB.position.copy(tmpOl).add(dir.clone().multiplyScalar(-rO));
         }
 
         function moveAlongQuadratic(atomIdx, p0, p1, p2, tl, dur, at) {
@@ -442,22 +509,141 @@
         // Master GSAP timeline: pin + scrub + assembly + orbit
         // Master GSAP timeline: pin + scrub + single-step rotation (A→B→C→D→E→A)
         if (window.gsap && window.ScrollTrigger) {
-          gsap.registerPlugin(ScrollTrigger);
+          // Master GSAP timeline: full 3D rotation + sequential bond joins
           const tl = gsap.timeline({
-            defaults: { ease: "none" }, // strict, linear mapping to scroll
+            defaults: { ease: "none" },
             scrollTrigger: {
               trigger: "#hero",
               start: "top top",
-              end: "+=180%", // keep your existing section length
+              end: "+=180%",
               scrub: true,
               pin: true,
               // markers: true,
             },
           });
 
-          // Exactly one anticlockwise step: -2π/5 (A→B shift)
-          const fullTurn = -Math.PI * 2; // anticlockwise; flip sign if your camera framing needs the opposite
-          tl.to(masterSurface.rotation, { z: "+=" + fullTurn, duration: 1 });
+          // 3D spin over the whole scroll: yaw 360°, gentle pitch/roll that return to start
+          const yawTurn = Math.PI * 2;
+          tl.to(masterSurface.rotation, { y: "+=" + yawTurn, duration: 1 }, 0);
+          tl.to(
+            masterSurface.rotation,
+            { x: "+=0.28", z: "-=0.22", duration: 0.5, ease: "sine.inOut" },
+            0
+          );
+          tl.to(
+            masterSurface.rotation,
+            { x: "-=0.28", z: "+=0.22", duration: 0.5, ease: "sine.inOut" },
+            0.5
+          );
+
+          // Sequential joins: five equal beats across the scroll
+          const beat = 1 / 5;
+          const moveDur = beat * 1.2;
+          moveAlongQuadratic(
+            0,
+            startPositions[0],
+            vias[0],
+            targets[0],
+            tl,
+            moveDur,
+            0 * beat
+          );
+          moveAlongQuadratic(
+            1,
+            startPositions[1],
+            vias[1],
+            targets[1],
+            tl,
+            moveDur,
+            1 * beat
+          );
+          moveAlongQuadratic(
+            2,
+            startPositions[2],
+            vias[2],
+            targets[2],
+            tl,
+            moveDur,
+            2 * beat
+          );
+          moveAlongQuadratic(
+            3,
+            startPositions[3],
+            vias[3],
+            targets[3],
+            tl,
+            moveDur,
+            3 * beat
+          );
+          moveAlongQuadratic(
+            4,
+            startPositions[4],
+            vias[4],
+            targets[4],
+            tl,
+            moveDur,
+            4 * beat
+          );
+          tl.to(
+            bonds[0],
+            {
+              growth: 1,
+              duration: beat * 0.9,
+              ease: "power2.out",
+              onStart: () => {
+                bonds[0].a.visible = bonds[0].b.visible = true;
+              },
+            },
+            0 * beat + beat * 0.7
+          );
+          tl.to(
+            bonds[1],
+            {
+              growth: 1,
+              duration: beat * 0.9,
+              ease: "power2.out",
+              onStart: () => {
+                bonds[1].a.visible = bonds[1].b.visible = true;
+              },
+            },
+            1 * beat + beat * 0.7
+          );
+          tl.to(
+            bonds[2],
+            {
+              growth: 1,
+              duration: beat * 0.9,
+              ease: "power2.out",
+              onStart: () => {
+                bonds[2].a.visible = bonds[2].b.visible = true;
+              },
+            },
+            2 * beat + beat * 0.7
+          );
+          tl.to(
+            bonds[3],
+            {
+              growth: 1,
+              duration: beat * 0.9,
+              ease: "power2.out",
+              onStart: () => {
+                bonds[3].a.visible = bonds[3].b.visible = true;
+              },
+            },
+            3 * beat + beat * 0.7
+          );
+          tl.to(
+            bonds[4],
+            {
+              growth: 1,
+              duration: beat * 0.9,
+              ease: "power2.out",
+              onStart: () => {
+                bonds[4].a.visible = bonds[4].b.visible = true;
+              },
+            },
+            4 * beat + beat * 0.7
+          );
         }
         // Hide poster once rendering is alive
         setTimeout(() => posterEl && posterEl.classList.add("hidden"), 150);
