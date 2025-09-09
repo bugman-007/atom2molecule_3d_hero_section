@@ -77,6 +77,7 @@
       #copy1 {
         left: 4vw;
         top: 22vh;
+        font-family: Archimoto V01;
         font-weight: 800;
         font-size: clamp(26px, 5vw, 52px);
         color: #e9eef6;
@@ -84,6 +85,7 @@
       #copy2 {
         right: 5vw;
         top: 28vh;
+        font-family: Space Grotesk;
         font-weight: 500;
         font-size: clamp(14px, 1.6vw, 18px);
         color: #d9e3ef;
@@ -132,7 +134,10 @@
         src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E"
       />
       <div class="status" id="status">Bonds + Pin setup…</div>
-      <div id="copy1" class="copy">/ IN THE<br />PURSUIT OF<br />PROGRESS</div>
+      <div id="copy1" class="copy">
+        / IN THE<br />PURSUIT OF<br />
+        <span style="color: #f89a5f"> PROGRESS</span>
+      </div>
       <div id="copy2" class="copy">
         Chematek is an industrial technology company that offers products,
         services, and solutions for chemicals, lubricants and engineering,
@@ -353,7 +358,7 @@
         ].map((d, i) => {
           const m = new THREE.Mesh(atomGeo, atomMat);
           m.position.copy(startRing[i]); // A..E with planned depths
-          m.scale.setScalar(1); // no growth now (you disabled growth phase)
+          m.scale.setScalar(1 + Math.random() * 0.35); // no growth now (you disabled growth phase)
           ringGroup.add(m);
           m.renderOrder = 2;
           return m;
