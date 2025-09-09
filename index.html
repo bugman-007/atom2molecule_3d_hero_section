@@ -176,6 +176,7 @@
       const CAP_SHRINK_OUT = 0.18; // cap fully grown above this
       const CAP_INSET = 0.02; // push caps slightly into spheres (world units)
       const CAP_SCALE = 1.06; // final cap scale for a soft fillet silhouette
+      const ONE_SIDED_OUTER_IDX = 0;
 
       let renderer, scene, camera, molecule, rafId;
 
@@ -455,6 +456,7 @@
             capB: capO,
             growth: 0,
             outerIdx,
+            oneSided: outerIdx === ONE_SIDED_OUTER_IDX,
           };
           bonds.push(pair);
           return pair;
@@ -500,13 +502,14 @@
           // 3) direction & distances in **molecule space**
           tmpDir.subVectors(tmpOl, tmpCl);
           const centerDist = tmpDir.length();
+          // const g = pair.growth;
+          // const show = g > CAP_VIS_EPS;
+          // pair.a.visible = show;
+          // pair.b.visible = show;
+          // pair.capA.visible = show;
+          // pair.capB.visible = show;
           const g = pair.growth;
           const show = g > CAP_VIS_EPS;
-
-          pair.a.visible = show;
-          pair.b.visible = show;
-          pair.capA.visible = show;
-          pair.capB.visible = show;
 
           // Smooth shrink/grow of caps so they never linger as dots
           const t = Math.min(
@@ -523,36 +526,93 @@
           const coreLen = Math.max(0, centerDist - (rC + rO));
           const halfLen = coreLen * 0.5;
 
-          if (halfLen <= 1e-6 || g <= 0) {
-            pair.a.visible = pair.b.visible = false;
-            return;
-          }
+          // if (halfLen <= 1e-6 || g <= 0) {
+          //   pair.a.visible = pair.b.visible = false;
+          //   return;
+          // }
 
           const dir = tmpDirN.copy(tmpDir).normalize();
 
           // Center-side half (aiming outward from **tmpCl**)
-          pair.a.visible = true;
-          pair.a.position.copy(tmpCl).add(dir.clone().multiplyScalar(rC));
-          pair.a.quaternion.setFromUnitVectors(UP, dir);
-          pair.a.scale.set(1, halfLen * g, 1);
+          // pair.a.visible = true;
+          // pair.a.position.copy(tmpCl).add(dir.clone().multiplyScalar(rC));
+          // pair.a.quaternion.setFromUnitVectors(UP, dir);
+          // pair.a.scale.set(1, halfLen * g, 1);
 
-          // Outer-side half (aiming inward from **tmpOl**)
-          pair.b.visible = true;
-          pair.b.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
-          tmpNeg.copy(dir).multiplyScalar(-1);
-          pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
-          pair.b.scale.set(1, halfLen * g, 1);
+          // // Outer-side half (aiming inward from **tmpOl**)
+          // pair.b.visible = true;
+          // pair.b.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
+          // tmpNeg.copy(dir).multiplyScalar(-1);
+          // pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
+          // pair.b.scale.set(1, halfLen * g, 1);
 
-          // Meniscus caps at each interface (visible once growth begins)
-          const showCap = g > 0.001;
+          // // Meniscus caps at each interface (visible once growth begins)
+          // const showCap = g > 0.001;
 
-          // Place caps right where the rod meets each sphere surface
-          pair.capA.position
-            .copy(tmpCl)
-            .add(tmpV1.copy(dir).multiplyScalar(rC));
-          pair.capB.position
-            .copy(tmpOl)
-            .add(tmpV2.copy(dir).multiplyScalar(-rO));
+          // // Place caps right where the rod meets each sphere surface
+          // pair.capA.position
+          //   .copy(tmpCl)
+          //   .add(tmpV1.copy(dir).multiplyScalar(rC));
+          // pair.capB.position
+          //   .copy(tmpOl)
+          //   .add(tmpV2.copy(dir).multiplyScalar(-rO));
+          if (pair.oneSided) {
+    // --- One-sided growth: OUTER → CENTER ---
+    const len = coreLen * g;
+    const visible = show && len > 1e-6;
+
+    // hide center half entirely
+    pair.a.visible = false;
+
+    // grow a single rod from the OUTER surface toward the center
+    pair.b.visible = visible;
+    pair.b.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
+    tmpNeg.copy(dir).multiplyScalar(-1);
+    pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
+    pair.b.scale.set(1, len, 1); // full length, not half
+
+    // caps: outer cap from the start; center cap appears only near completion
+    const showCapOuter = g > 0.001;
+    const showCapCenter = g > 0.95;
+    pair.capB.visible = showCapOuter;
+    pair.capB.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
+    pair.capB.scale.setScalar(s);
+
+    pair.capA.visible = showCapCenter;
+    if (showCapCenter) {
+      pair.capA.position.copy(tmpCl).add(tmpV1.copy(dir).multiplyScalar(rC));
+      pair.capA.scale.setScalar(CAP_SCALE);
+    }
+    return; // done
+  } else {
+    // --- Symmetric growth (current behavior) ---
+    if (halfLen <= 1e-6 || g <= 0) {
+      pair.a.visible = pair.b.visible = false;
+      pair.capA.visible = pair.capB.visible = false;
+      return;
+    }
+    pair.a.visible = show;
+    pair.b.visible = show;
+    pair.capA.visible = show;
+    pair.capB.visible = show;
+
+    // center-side half
+    pair.a.position.copy(tmpCl).add(tmpV1.copy(dir).multiplyScalar(rC));
+    pair.a.quaternion.setFromUnitVectors(UP, dir);
+    pair.a.scale.set(1, halfLen * g, 1);
+
+    // outer-side half
+    pair.b.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
+    tmpNeg.copy(dir).multiplyScalar(-1);
+    pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
+    pair.b.scale.set(1, halfLen * g, 1);
+
+    // caps at both ends
+    pair.capA.position.copy(tmpCl).add(tmpV1.copy(dir).multiplyScalar(rC));
+    pair.capB.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
+    pair.capA.scale.setScalar(s);
+    pair.capB.scale.setScalar(s);
+  }
         }
 
         // Build a small LUT for arc-length → parameter mapping
@@ -846,7 +906,10 @@
                 duration: beat * 0.9,
                 ease: "power2.out",
                 onStart: () => {
-                  bonds[0].a.visible = bonds[0].b.visible = true;
+                  // bonds[0].a.visible = bonds[0].b.visible = true;
+                  const b = bonds[0];
+                  b.b.visible = true;
+                  b.a.visible = !b.oneSided;
                 },
               },
               0 * beat + beat * 0.7
@@ -858,7 +921,10 @@
                 duration: beat * 0.9,
                 ease: "power2.out",
                 onStart: () => {
-                  bonds[1].a.visible = bonds[1].b.visible = true;
+                  // bonds[1].a.visible = bonds[1].b.visible = true;
+                  const b = bonds[1];
+                  b.b.visible = true;
+                  b.a.visible = !b.oneSided;
                 },
               },
               1 * beat + beat * 0.7
@@ -870,7 +936,10 @@
                 duration: beat * 0.9,
                 ease: "power2.out",
                 onStart: () => {
-                  bonds[2].a.visible = bonds[2].b.visible = true;
+                  // bonds[2].a.visible = bonds[2].b.visible = true;
+                  const b = bonds[2];
+                  b.b.visible = true;
+                  b.a.visible = !b.oneSided;
                 },
               },
               2 * beat + beat * 0.7
@@ -882,7 +951,10 @@
                 duration: beat * 0.9,
                 ease: "power2.out",
                 onStart: () => {
-                  bonds[3].a.visible = bonds[3].b.visible = true;
+                  // bonds[3].a.visible = bonds[3].b.visible = true;
+                  const b = bonds[3];
+                  b.b.visible = true;
+                  b.a.visible = !b.oneSided;
                 },
               },
               3 * beat + beat * 0.7
@@ -894,7 +966,10 @@
                 duration: beat * 0.9,
                 ease: "power2.out",
                 onStart: () => {
-                  bonds[4].a.visible = bonds[4].b.visible = true;
+                  // bonds[4].a.visible = bonds[4].b.visible = true;
+                  const b = bonds[4];
+                  b.b.visible = true;
+                  b.a.visible = !b.oneSided;
                 },
               },
               4 * beat + beat * 0.7
