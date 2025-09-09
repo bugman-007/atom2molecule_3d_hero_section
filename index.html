@@ -98,6 +98,30 @@
         place-items: center;
         background: linear-gradient(180deg, #051c33 0%, #0b0a46 100%);
       }
+
+      .copy {
+        position: absolute;
+        max-width: 44ch;
+        line-height: 1.1;
+        letter-spacing: 0.02em;
+        text-wrap: balance;
+      }
+      #copy1 {
+        left: 4vw;
+        top: 22vh;
+        font-weight: 800;
+        font-size: clamp(30px, 5vw, 60px);
+        color: #e9eef6;
+      }
+      #copy2 {
+        right: 5vw;
+        top: 80vh;
+        font-weight: 500;
+        font-size: clamp(18px, 1.6vw, 24px);
+        color: #d9e3ef;
+        opacity: 0;
+        pointer-events: none;
+      }
     </style>
   </head>
   <body>
@@ -108,8 +132,8 @@
         src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E"
       />
       <div class="status" id="status">Bonds + Pin setup…</div>
-      <div id="copy1">/ IN THE<br />PURSUIT OF<br />PROGRESS</div>
-      <div id="copy2">
+      <div id="copy1" class="copy">/ IN THE<br />PURSUIT OF<br />PROGRESS</div>
+      <div id="copy2" class="copy">
         Chematek is an industrial technology company that offers products,
         services, and solutions for chemicals, lubricants and engineering,
         procurement, and construction.
@@ -242,7 +266,7 @@
         scene.environment = envRT.texture;
 
         // Materials (glass/water tuning; navy tint preserved)
-        const baseColor = 0x2c5aa0;
+        const baseColor = 0x1c1a70; // 010155
 
         const atomMat = new THREE.MeshPhysicalMaterial({
           color: baseColor,
@@ -444,6 +468,10 @@
 
         const UP = new THREE.Vector3(0, 1, 0);
         const tmpDir = new THREE.Vector3();
+        const tmpDirN = new THREE.Vector3(); // normalized direction
+        const tmpV1 = new THREE.Vector3(); // scratch mul/add
+        const tmpV2 = new THREE.Vector3(); // scratch mul/add
+        const tmpNeg = new THREE.Vector3();
 
         // Bonds should be present the whole time for this storyboard phase
 
@@ -495,7 +523,7 @@
             return;
           }
 
-          const dir = tmpDir.clone().normalize();
+          const dir = tmpDirN.copy(tmpDir).normalize();
 
           // Center-side half (aiming outward from **tmpCl**)
           pair.a.visible = true;
@@ -505,32 +533,66 @@
 
           // Outer-side half (aiming inward from **tmpOl**)
           pair.b.visible = true;
-          pair.b.position.copy(tmpOl).add(dir.clone().multiplyScalar(-rO));
-          const neg = dir.clone().multiplyScalar(-1);
-          pair.b.quaternion.setFromUnitVectors(UP, neg);
+          pair.b.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
+          tmpNeg.copy(dir).multiplyScalar(-1);
+          pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
           pair.b.scale.set(1, halfLen * g, 1);
 
           // Meniscus caps at each interface (visible once growth begins)
           const showCap = g > 0.001;
 
           // Place caps right where the rod meets each sphere surface
-          pair.capA.visible = showCap;
-          pair.capA.position.copy(tmpCl).add(dir.clone().multiplyScalar(rC));
-
-          pair.capB.visible = showCap;
-          pair.capB.position.copy(tmpOl).add(dir.clone().multiplyScalar(-rO));
+          pair.capA.position
+            .copy(tmpCl)
+            .add(tmpV1.copy(dir).multiplyScalar(rC));
+          pair.capB.position
+            .copy(tmpOl)
+            .add(tmpV2.copy(dir).multiplyScalar(-rO));
         }
 
-        function moveAlongQuadratic(atomIdx, p0, p1, p2, tl, dur, at) {
-          const proxy = { t: 0 };
+        // Build a small LUT for arc-length → parameter mapping
+        function buildBezierLUT(p0, p1, p2, samples = 80) {
+          const pts = new Array(samples + 1);
+          const len = new Float32Array(samples + 1);
+          let acc = 0;
+          for (let i = 0; i <= samples; i++) {
+            const t = i / samples,
+              it = 1 - t;
+            const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
+            const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
+            const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
+            pts[i] = new THREE.Vector3(x, y, z);
+            if (i) acc += pts[i].distanceTo(pts[i - 1]);
+            len[i] = acc;
+          }
+          return { pts, len, total: acc };
+        }
+        function tFromS(lut, s) {
+          const target = s * lut.total;
+          // binary search
+          let lo = 0,
+            hi = lut.len.length - 1;
+          while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            lut.len[mid] < target ? (lo = mid + 1) : (hi = mid);
+          }
+          const i = Math.max(1, lo);
+          const l0 = lut.len[i - 1],
+            l1 = lut.len[i];
+          const f = (target - l0) / Math.max(1e-6, l1 - l0);
+          return (i - 1 + f) / (lut.len.length - 1);
+        }
+        function moveAlongQuadraticCS(atomIdx, p0, p1, p2, tl, dur, at) {
+          const lut = buildBezierLUT(p0, p1, p2, 80);
+          const proxy = { s: 0 }; // normalized distance
           tl.to(
             proxy,
             {
-              t: 1,
+              s: 1,
               duration: dur,
-              ease: "power3.out",
+              ease: "none", // constant-speed in arc length
               onUpdate: () => {
-                const t = proxy.t,
+                const t = tFromS(lut, proxy.s),
                   it = 1 - t;
                 const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
                 const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
@@ -579,6 +641,7 @@
           camera.aspect = w / h;
           camera.updateProjectionMatrix();
           renderer.setSize(w, h, false);
+          updateCameraForViewport();
 
           // Recompute ScrollTrigger measurements after layout settles
           if (window.ScrollTrigger) {
@@ -635,6 +698,7 @@
               rafId = 0;
             } // stop rendering
           } else {
+            gsap.ticker.lagSmoothing(0); // avoid "catch-up" jumps after stalls
             const tl = gsap.timeline({
               defaults: { ease: "none" },
               scrollTrigger: {
@@ -667,6 +731,26 @@
             });
             tl.set("#copy1", { opacity: 0, y: 12 });
             tl.set("#copy2", { opacity: 0, y: 12 });
+
+            tl.to(
+              "#copy1",
+              { opacity: 1, y: 0, duration: 0.12, ease: "power2.out" },
+              0.22
+            );
+
+            // Headline out (78%) before paragraph enters
+            tl.to(
+              "#copy1",
+              { opacity: 0, y: -10, duration: 0.12, ease: "power1.out" },
+              0.78
+            );
+
+            // Paragraph in (82%) for the composed state
+            tl.to(
+              "#copy2",
+              { opacity: 1, y: 0, duration: 0.18, ease: "power2.out" },
+              0.82
+            );
 
             // 3D spin over the whole scroll: yaw 360°, gentle pitch/roll that return to start
             const yawTurn = Math.PI * 2;
@@ -704,8 +788,8 @@
 
             // Sequential joins: five equal beats across the scroll
             const beat = 1 / 5;
-            const moveDur = beat * 1.2;
-            moveAlongQuadratic(
+            const moveDur = beat * 0.95;
+            moveAlongQuadraticCS(
               0,
               startPositions[0],
               vias[0],
@@ -714,7 +798,7 @@
               moveDur,
               0 * beat
             );
-            moveAlongQuadratic(
+            moveAlongQuadraticCS(
               1,
               startPositions[1],
               vias[1],
@@ -723,7 +807,7 @@
               moveDur,
               1 * beat
             );
-            moveAlongQuadratic(
+            moveAlongQuadraticCS(
               2,
               startPositions[2],
               vias[2],
@@ -732,7 +816,7 @@
               moveDur,
               2 * beat
             );
-            moveAlongQuadratic(
+            moveAlongQuadraticCS(
               3,
               startPositions[3],
               vias[3],
@@ -741,7 +825,7 @@
               moveDur,
               3 * beat
             );
-            moveAlongQuadratic(
+            moveAlongQuadraticCS(
               4,
               startPositions[4],
               vias[4],
