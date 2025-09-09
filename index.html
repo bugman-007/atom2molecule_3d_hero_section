@@ -37,9 +37,9 @@
         overscroll-behavior: contain;
         background: radial-gradient(
           120% 120% at 30% 20%,
-          #0e3969 0%,
+          #0161ae 0%,
           #06223d 60%,
-          #051c33 100%
+          #002c50 100%
         );
       }
       #hero canvas {
@@ -96,7 +96,7 @@
         min-height: 200vh;
         display: grid;
         place-items: center;
-        background: linear-gradient(180deg, #051c33 0%, #0a2746 100%);
+        background: linear-gradient(180deg, #051c33 0%, #0b0a46 100%);
       }
     </style>
   </head>
@@ -161,9 +161,12 @@
         const dprCap = isCoarse ? 1.75 : 2.0;
         renderer.setPixelRatio(Math.min(devicePixelRatio || 1, dprCap));
         renderer.setSize(heroEl.clientWidth, heroEl.clientHeight, false);
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-        renderer.toneMapping = THREE.NoToneMapping;
-        renderer.setClearColor(0x053b6c, 1);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        renderer.physicallyCorrectLights = true;
+        renderer.sortObjects = true;
+        renderer.outputColorSpace = THREE.SRGBColorSpace; // true sRGB output
+        renderer.setClearColor(0x000000, 0);
         heroEl.prepend(renderer.domElement);
         // Keep the molecule comfortably framed across devices (no group scaling)
         function updateCameraForViewport() {
@@ -188,17 +191,9 @@
           camera.updateProjectionMatrix();
         }
 
-        // Accurate output & highlights for transmissive materials
-        renderer.outputColorSpace = THREE.SRGBColorSpace; // true sRGB output
-        renderer.toneMapping = THREE.ACESFilmicToneMapping; // stable highlight rolloff
-        renderer.toneMappingExposure = 1.0;
-        // Keep light math physically reasonable (balances with ACES)
-        renderer.physicallyCorrectLights = true;
-        renderer.sortObjects = true;
-
         // Scene & camera
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x053b6c);
+        // scene.background = new THREE.Color(0x053b6c);
         camera = new THREE.PerspectiveCamera(
           35,
           heroEl.clientWidth / heroEl.clientHeight,
@@ -214,27 +209,66 @@
         rim.position.set(-3.0, 1.2, -2.2);
         const amb = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(key, rim, amb);
+        // --- Lightweight PMREM environment for glass (no external HDR needed) ---
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
 
-        // Materials
+        // Build a tiny LDR "studio": a dark room box + a few bright panels
+        const envScene = new THREE.Scene();
+        const room = new THREE.Mesh(
+          new THREE.BoxGeometry(10, 10, 10),
+          new THREE.MeshBasicMaterial({ color: 0x0a2746, side: THREE.BackSide })
+        );
+        envScene.add(room);
+
+        // helper to add a bright panel
+        function panel(x, y, z, rx, ry, w, h, luminance) {
+          const m = new THREE.Mesh(
+            new THREE.PlaneGeometry(w, h),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+          );
+          m.position.set(x, y, z);
+          m.rotation.set(rx, ry, 0);
+          m.material.color.setScalar(luminance);
+          envScene.add(m);
+        }
+        // a few asymmetric panels for nice glints/reflections
+        panel(-2.2, 2.1, -3.0, 0.0, 0.0, 3.0, 2.0, 3.0);
+        panel(3.0, -1.0, 2.2, 0.0, Math.PI / 2, 2.0, 1.5, 2.4);
+        panel(-3.2, -2.0, 1.0, 0.0, -Math.PI / 2, 1.4, 2.4, 2.1);
+
+        // Bake environment for IBL/transmission
+        const envRT = pmrem.fromScene(envScene, 0.04);
+        scene.environment = envRT.texture;
+
+        // Materials (glass/water tuning; navy tint preserved)
         const baseColor = 0x2c5aa0;
+
         const atomMat = new THREE.MeshPhysicalMaterial({
-          color: baseColor, // keep your brand hue
-          roughness: 0.22, // a touch smoother for cleaner glints
-          metalness: 0.0, // metalness off for glass (keeps color honest)
-          clearcoat: 1.0, // stronger clearcoat for crisp specular
-          clearcoatRoughness: 0.08, // small blur to avoid mirror look
-          transmission: 0.55, // a bit more glassy without washing out
-          ior: 1.22, // realistic-ish refractive index for acrylic/glass mix
-          thickness: 0.28, // slightly thicker body
-          attenuationColor: new THREE.Color(baseColor), // tint attenuation by base
-          attenuationDistance: 2.6, // avoid darkening on mobile DPR
+          color: baseColor,
+          roughness: 0.08, // cleaner highlights
+          metalness: 0.0, // glass is dielectric
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.06,
+          transmission: 0.9, // strong transmission
+          ior: 1.333, // water-like IOR
+          thickness: 0.4, // more body for internal darkening
+          attenuationColor: new THREE.Color(baseColor),
+          attenuationDistance: 1.6, // shorter distance: richer tint without going murky
+          envMapIntensity: 1.25, // brighter reflections/refractions from env
+          opacity: 1.0, // fully present (transmission handles “glassiness”)
         });
+
         const bondMat = atomMat.clone();
-        // Bonds can read a hair more solid so joints remain readable at small sizes
-        bondMat.transmission = 0.48;
-        bondMat.thickness = 0.24;
+        // Slightly less transmissive rods keep joints readable
+        bondMat.transmission = 0.82;
+        bondMat.thickness = 0.34;
+        bondMat.envMapIntensity = 1.15;
+
         atomMat.transparent = true;
         bondMat.transparent = true;
+        // Keep depthWrite ON for now to avoid ordering mess; renderOrder already enforces a stable stack.
+        // If you later want true see-through overlaps, we’ll flip these to false and harden ordering:
         // atomMat.depthWrite = false;
         // bondMat.depthWrite = false;
 
