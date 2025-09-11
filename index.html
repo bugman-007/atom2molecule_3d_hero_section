@@ -177,6 +177,7 @@
       const CAP_INSET = 0.02; // push caps slightly into spheres (world units)
       const CAP_SCALE = 1.06; // final cap scale for a soft fillet silhouette
       const ONE_SIDED_OUTER_IDX = 0;
+      const ALL_ONE_SIDED_BONDS = true;
 
       let renderer, scene, camera, molecule, rafId;
 
@@ -337,7 +338,7 @@
 
         // Outer atoms (A..E) placed ON the MASTERSURFACE plane (z=0 in its local space).
         // Depth differences now come from the plane tilt (PATCH A), not per-atom Z.
-        const Rplane = 2.2; // ring radius in the MASTERSURFACE plane
+        const Rplane = 2.9; // ring radius in the MASTERSURFACE plane
         const baseAngle = Math.PI / 2; // A at top
         const step = (2 * Math.PI) / 5;
 
@@ -359,7 +360,7 @@
         ].map((d, i) => {
           const m = new THREE.Mesh(atomGeo, atomMat);
           m.position.copy(startRing[i]); // A..E with planned depths
-          m.scale.setScalar(1 + Math.random() * 0.35); // no growth now (you disabled growth phase)
+          m.scale.setScalar(1.2 + Math.random() * 0.45); // no growth now (you disabled growth phase)
           ringGroup.add(m);
           m.renderOrder = 2;
           return m;
@@ -390,24 +391,38 @@
         ];
 
         // Gentle 3D approach arcs (keep Z modest; axial paths bow toward ±Z)
+        // Build bowed (rounded) quadratic control points for smooth arcs
+        function bowedVia(p0, p2, bulge = 0.42, sign = 1) {
+          // chord and midpoint
+          const chord = p2.clone().sub(p0);
+          const mid = p0.clone().add(p2).multiplyScalar(0.5);
+
+          // plane through origin (center) spanned by p0 & p2
+          const planeN = p0.clone().cross(p2).normalize(); // normal of that plane
+
+          // in-plane normal perpendicular to chord (tilt direction)
+          const bulgeDir = planeN.clone().cross(chord).normalize(); // lies in the p0–p2 plane
+
+          // amount of bow proportional to chord length
+          const bow = chord.length() * bulge * sign;
+
+          return mid.add(bulgeDir.multiplyScalar(bow));
+        }
+
+        // Choose signs so z-bias matches your previous look (0:+, 1:-, 2:-, 3:+, 4:-)
+        const bulgeSigns = [+1, -1, -1, +1, -1];
+
+        // Rebuild vias using the new geometry
         const vias = {
-          0: new THREE.Vector3(
-            startPositions[0].x * 0.6,
-            startPositions[0].y * 0.6,
-            R * 0.4
-          ),
-          1: new THREE.Vector3(
-            startPositions[1].x * 0.6,
-            startPositions[1].y * 0.6,
-            -R * 0.4
-          ),
-          2: new THREE.Vector3(targets[2].x * 0.6, targets[2].y * 0.6, -0.22),
-          3: new THREE.Vector3(targets[3].x * 0.6, targets[3].y * 0.6, 0.22),
-          4: new THREE.Vector3(targets[4].x * 0.6, targets[4].y * 0.6, -0.18),
+          0: bowedVia(startPositions[0], targets[0], 0.42, bulgeSigns[0]),
+          1: bowedVia(startPositions[1], targets[1], 0.42, bulgeSigns[1]),
+          2: bowedVia(startPositions[2], targets[2], 0.38, bulgeSigns[2]),
+          3: bowedVia(startPositions[3], targets[3], 0.38, bulgeSigns[3]),
+          4: bowedVia(startPositions[4], targets[4], 0.38, bulgeSigns[4]),
         };
 
         // Bond / cap dimensions (keep caps slightly fuller than the rod for a meniscus look)
-        const bondRadius = 0.12;
+        const bondRadius = 0.14;
         const halfGeo = new THREE.CylinderGeometry(
           bondRadius,
           bondRadius,
@@ -456,7 +471,7 @@
             capB: capO,
             growth: 0,
             outerIdx,
-            oneSided: outerIdx === ONE_SIDED_OUTER_IDX,
+            oneSided: ALL_ONE_SIDED_BONDS || outerIdx === ONE_SIDED_OUTER_IDX,
           };
           bonds.push(pair);
           return pair;
@@ -556,67 +571,79 @@
           // pair.capB.position
           //   .copy(tmpOl)
           //   .add(tmpV2.copy(dir).multiplyScalar(-rO));
-          if (pair.oneSided) {
-    // --- One-sided growth: OUTER → CENTER ---
-    const len = coreLen * g;
-    const visible = show && len > 1e-6;
+          if (ALL_ONE_SIDED_BONDS || pair.oneSided) {
+            // --- One-sided growth: OUTER → CENTER ---
+            const len = coreLen * g;
+            const visible = show && len > 1e-6;
 
-    // hide center half entirely
-    pair.a.visible = false;
+            // hide center half entirely
+            pair.a.visible = false;
 
-    // grow a single rod from the OUTER surface toward the center
-    pair.b.visible = visible;
-    pair.b.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
-    tmpNeg.copy(dir).multiplyScalar(-1);
-    pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
-    pair.b.scale.set(1, len, 1); // full length, not half
+            // grow a single rod from the OUTER surface toward the center
+            pair.b.visible = visible;
+            pair.b.position
+              .copy(tmpOl)
+              .add(tmpV2.copy(dir).multiplyScalar(-rO));
+            tmpNeg.copy(dir).multiplyScalar(-1);
+            pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
+            pair.b.scale.set(1, len, 1); // full length, not half
 
-    // caps: outer cap from the start; center cap appears only near completion
-    const showCapOuter = g > 0.001;
-    const showCapCenter = g > 0.95;
-    pair.capB.visible = showCapOuter;
-    pair.capB.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
-    pair.capB.scale.setScalar(s);
+            // caps: outer cap from the start; center cap appears only near completion
+            const showCapOuter = g > 0.001;
+            const showCapCenter = g > 0.95;
+            pair.capB.visible = showCapOuter;
+            pair.capB.position
+              .copy(tmpOl)
+              .add(tmpV2.copy(dir).multiplyScalar(-rO));
+            pair.capB.scale.setScalar(s);
 
-    pair.capA.visible = showCapCenter;
-    if (showCapCenter) {
-      pair.capA.position.copy(tmpCl).add(tmpV1.copy(dir).multiplyScalar(rC));
-      pair.capA.scale.setScalar(CAP_SCALE);
-    }
-    return; // done
-  } else {
-    // --- Symmetric growth (current behavior) ---
-    if (halfLen <= 1e-6 || g <= 0) {
-      pair.a.visible = pair.b.visible = false;
-      pair.capA.visible = pair.capB.visible = false;
-      return;
-    }
-    pair.a.visible = show;
-    pair.b.visible = show;
-    pair.capA.visible = show;
-    pair.capB.visible = show;
+            pair.capA.visible = showCapCenter;
+            if (showCapCenter) {
+              pair.capA.position
+                .copy(tmpCl)
+                .add(tmpV1.copy(dir).multiplyScalar(rC));
+              pair.capA.scale.setScalar(CAP_SCALE);
+            }
+            return; // done
+          } else {
+            // --- Symmetric growth (current behavior) ---
+            if (halfLen <= 1e-6 || g <= 0) {
+              pair.a.visible = pair.b.visible = false;
+              pair.capA.visible = pair.capB.visible = false;
+              return;
+            }
+            pair.a.visible = show;
+            pair.b.visible = show;
+            pair.capA.visible = show;
+            pair.capB.visible = show;
 
-    // center-side half
-    pair.a.position.copy(tmpCl).add(tmpV1.copy(dir).multiplyScalar(rC));
-    pair.a.quaternion.setFromUnitVectors(UP, dir);
-    pair.a.scale.set(1, halfLen * g, 1);
+            // center-side half
+            pair.a.position.copy(tmpCl).add(tmpV1.copy(dir).multiplyScalar(rC));
+            pair.a.quaternion.setFromUnitVectors(UP, dir);
+            pair.a.scale.set(1, halfLen * g, 1);
 
-    // outer-side half
-    pair.b.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
-    tmpNeg.copy(dir).multiplyScalar(-1);
-    pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
-    pair.b.scale.set(1, halfLen * g, 1);
+            // outer-side half
+            pair.b.position
+              .copy(tmpOl)
+              .add(tmpV2.copy(dir).multiplyScalar(-rO));
+            tmpNeg.copy(dir).multiplyScalar(-1);
+            pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
+            pair.b.scale.set(1, halfLen * g, 1);
 
-    // caps at both ends
-    pair.capA.position.copy(tmpCl).add(tmpV1.copy(dir).multiplyScalar(rC));
-    pair.capB.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
-    pair.capA.scale.setScalar(s);
-    pair.capB.scale.setScalar(s);
-  }
+            // caps at both ends
+            pair.capA.position
+              .copy(tmpCl)
+              .add(tmpV1.copy(dir).multiplyScalar(rC));
+            pair.capB.position
+              .copy(tmpOl)
+              .add(tmpV2.copy(dir).multiplyScalar(-rO));
+            pair.capA.scale.setScalar(s);
+            pair.capB.scale.setScalar(s);
+          }
         }
 
         // Build a small LUT for arc-length → parameter mapping
-        function buildBezierLUT(p0, p1, p2, samples = 80) {
+        function buildBezierLUT(p0, p1, p2, samples = 240) {
           const pts = new Array(samples + 1);
           const len = new Float32Array(samples + 1);
           let acc = 0;
@@ -741,11 +768,14 @@
             // Fully grow all bonds and show caps
             bonds.forEach((pair) => {
               pair.growth = 1;
-              if (pair.a) pair.a.visible = true;
+              // one-armed display: only outer→center rod is visible
+              if (pair.a) pair.a.visible = false;
               if (pair.b) pair.b.visible = true;
-              if (pair.capA) pair.capA.visible = true;
-              if (pair.capB) pair.capB.visible = true;
+              if (pair.capA) pair.capA.visible = true; // center cap shown at completion
+              if (pair.capB) pair.capB.visible = true; // outer cap stays visible
+              positionCenterBond(pair); // compute final transforms once
             });
+            renderer.render(scene, camera);
 
             // No rotation in reduced-motion
             masterSurface.rotation.set(0, 0, 0);
@@ -909,7 +939,7 @@
                   // bonds[0].a.visible = bonds[0].b.visible = true;
                   const b = bonds[0];
                   b.b.visible = true;
-                  b.a.visible = !b.oneSided;
+                  b.a.visible = false;
                 },
               },
               0 * beat + beat * 0.7
@@ -924,7 +954,7 @@
                   // bonds[1].a.visible = bonds[1].b.visible = true;
                   const b = bonds[1];
                   b.b.visible = true;
-                  b.a.visible = !b.oneSided;
+                  b.a.visible = false;
                 },
               },
               1 * beat + beat * 0.7
@@ -939,7 +969,7 @@
                   // bonds[2].a.visible = bonds[2].b.visible = true;
                   const b = bonds[2];
                   b.b.visible = true;
-                  b.a.visible = !b.oneSided;
+                  b.a.visible = false;
                 },
               },
               2 * beat + beat * 0.7
@@ -954,7 +984,7 @@
                   // bonds[3].a.visible = bonds[3].b.visible = true;
                   const b = bonds[3];
                   b.b.visible = true;
-                  b.a.visible = !b.oneSided;
+                  b.a.visible = false;
                 },
               },
               3 * beat + beat * 0.7
@@ -969,7 +999,7 @@
                   // bonds[4].a.visible = bonds[4].b.visible = true;
                   const b = bonds[4];
                   b.b.visible = true;
-                  b.a.visible = !b.oneSided;
+                  b.a.visible = false;
                 },
               },
               4 * beat + beat * 0.7
