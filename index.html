@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="color-scheme" content="light dark" />
-    <title>Chematek Hero – Bonds + Pin</title>
+    <title>Chematek Hero — Bonds + Pin</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <style>
       *,
@@ -66,41 +66,6 @@
         opacity: 0.7;
         pointer-events: none;
       }
-      /* Copy overlays (left headline, right paragraph) */
-      .copy {
-        position: absolute;
-        max-width: 44ch;
-        line-height: 1.1;
-        letter-spacing: 0.02em;
-        text-wrap: balance;
-      }
-      #copy1 {
-        left: 4vw;
-        top: 22vh;
-        font-family: Archimoto V01;
-        font-weight: 800;
-        font-size: clamp(26px, 5vw, 52px);
-        color: #e9eef6;
-      }
-      #copy2 {
-        right: 5vw;
-        top: 28vh;
-        font-family: Space Grotesk;
-        font-weight: 500;
-        font-size: clamp(14px, 1.6vw, 18px);
-        color: #d9e3ef;
-        opacity: 0;
-        pointer-events: none;
-      }
-
-      /* After section ensures we can test scroll + pin behavior */
-      #after {
-        min-height: 200vh;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(180deg, #051c33 0%, #0b0a46 100%);
-      }
-
       .copy {
         position: absolute;
         max-width: 44ch;
@@ -123,6 +88,13 @@
         color: #d9e3ef;
         opacity: 0;
         pointer-events: none;
+      }
+
+      #after {
+        min-height: 200vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, #051c33 0%, #0b0a46 100%);
       }
     </style>
   </head>
@@ -148,13 +120,48 @@
       <div>Scroll past the pinned hero to verify release behavior.</div>
     </section>
 
-    <!-- Libraries (pinned) -->
     <script src="./assets/vendor/gsap.min.js"></script>
     <script src="./assets/vendor/ScrollTrigger.min.js"></script>
+    <script>
+      if (window.gsap && window.ScrollTrigger) {
+        gsap.registerPlugin(ScrollTrigger);
+      }
+    </script>
     <script type="module">
       import * as THREE from "./assets/vendor/three.module.min.js";
 
-      // --- Mobile viewport stability ---
+      // Constants - moved to top for better organization
+      const CONFIG = {
+        CAP_VIS_EPS: 0.03,
+        CAP_SHRINK_IN: 0.08,
+        CAP_SHRINK_OUT: 0.18,
+        CAP_SCALE: 1.06,
+        BASE_RADIUS: 0.5,
+        BOND_RADIUS: 0.14,
+        RING_RADIUS: 2.9,
+        TARGET_RADIUS: 1.8,
+        BULGE_RATIO: 0.35,
+        LUT_SAMPLES: 240, // Reduced from 320 for performance
+        BASE_COLOR: 0x1c1a70,
+      };
+
+      // Cached reusable objects
+      const tempVectors = {
+        v1: new THREE.Vector3(),
+        v2: new THREE.Vector3(),
+        v3: new THREE.Vector3(),
+        dir: new THREE.Vector3(),
+        dirN: new THREE.Vector3(),
+        tmpNeg: new THREE.Vector3(),
+        tmpCw: new THREE.Vector3(),
+        tmpOw: new THREE.Vector3(),
+        tmpCl: new THREE.Vector3(),
+        tmpOl: new THREE.Vector3(),
+      };
+
+      const UP = new THREE.Vector3(0, 1, 0);
+
+      // Mobile viewport stability
       (function setVH() {
         const set = () =>
           document.documentElement.style.setProperty(
@@ -170,24 +177,25 @@
       const statusEl = document.getElementById("status");
       const posterEl = document.querySelector(".poster");
 
-      // Cap gating & seating
-      const CAP_VIS_EPS = 0.03; // hide caps/halves when growth <= 3%
-      const CAP_SHRINK_IN = 0.08; // cap starts shrinking below this
-      const CAP_SHRINK_OUT = 0.18; // cap fully grown above this
-      const CAP_INSET = 0.02; // push caps slightly into spheres (world units)
-      const CAP_SCALE = 1.06; // final cap scale for a soft fillet silhouette
-      const ONE_SIDED_OUTER_IDX = 0;
-      const ALL_ONE_SIDED_BONDS = true;
-
       let renderer, scene, camera, molecule, rafId;
+      let bonds = [];
+      let atoms = [];
+      let center;
+
+      // Geometry cache
+      let atomGeo, halfGeo, capGeo;
+
+      // Material cache
+      let atomMat, bondMat;
 
       try {
-        // Renderer with DPR cap
+        // Renderer setup
         renderer = new THREE.WebGLRenderer({
           antialias: true,
           alpha: false,
           powerPreference: "high-performance",
         });
+
         const isCoarse = matchMedia("(pointer: coarse)").matches;
         const dprCap = isCoarse ? 1.75 : 2.0;
         renderer.setPixelRatio(Math.min(devicePixelRatio || 1, dprCap));
@@ -196,35 +204,24 @@
         renderer.toneMappingExposure = 1.0;
         renderer.physicallyCorrectLights = true;
         renderer.sortObjects = true;
-        renderer.outputColorSpace = THREE.SRGBColorSpace; // true sRGB output
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.setClearColor(0x000000, 0);
         heroEl.prepend(renderer.domElement);
-        // Keep the molecule comfortably framed across devices (no group scaling)
+
+        // Camera positioning function
         function updateCameraForViewport() {
           const w = window.innerWidth;
-
-          // Baseline: desktop wide screens
           let z = 8.0;
-
-          // Tablets / small laptops
           if (w <= 1280) z = 8.4;
-
-          // Large phones / phablets
           if (w <= 900) z = 8.8;
-
-          // Narrow phones
           if (w <= 600) z = 9.2;
-
-          // Very narrow phones (<= 380–420 px)
           if (w <= 420) z = 9.6;
-
           camera.position.z = z;
           camera.updateProjectionMatrix();
         }
 
-        // Scene & camera
+        // Scene setup
         scene = new THREE.Scene();
-        // scene.background = new THREE.Color(0x053b6c);
         camera = new THREE.PerspectiveCamera(
           35,
           heroEl.clientWidth / heroEl.clientHeight,
@@ -233,18 +230,18 @@
         );
         camera.position.set(0, 0, 8);
 
-        // Fixed lighting (never animate)
+        // Lighting setup
         const key = new THREE.DirectionalLight(0xffffff, 1.05);
         key.position.set(2.2, 3.0, 4.0);
         const rim = new THREE.DirectionalLight(0xaecbff, 0.38);
         rim.position.set(-3.0, 1.2, -2.2);
         const amb = new THREE.AmbientLight(0xffffff, 0.18);
         scene.add(key, rim, amb);
-        // --- Lightweight PMREM environment for glass (no external HDR needed) ---
+
+        // Environment setup
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
 
-        // Build a tiny LDR "studio": a dark room box + a few bright panels
         const envScene = new THREE.Scene();
         const room = new THREE.Mesh(
           new THREE.BoxGeometry(10, 10, 10),
@@ -252,73 +249,66 @@
         );
         envScene.add(room);
 
-        // helper to add a bright panel
-        function panel(x, y, z, rx, ry, w, h, luminance) {
+        // Environment panels
+        const panelMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const panelConfigs = [
+          [-2.2, 2.1, -3.0, 0.0, 0.0, 3.0, 2.0, 3.0],
+          [3.0, -1.0, 2.2, 0.0, Math.PI / 2, 2.0, 1.5, 2.4],
+          [-3.2, -2.0, 1.0, 0.0, -Math.PI / 2, 1.4, 2.4, 2.1],
+        ];
+
+        panelConfigs.forEach(([x, y, z, rx, ry, w, h, luminance]) => {
           const m = new THREE.Mesh(
             new THREE.PlaneGeometry(w, h),
-            new THREE.MeshBasicMaterial({ color: 0xffffff })
+            panelMaterial.clone()
           );
           m.position.set(x, y, z);
           m.rotation.set(rx, ry, 0);
           m.material.color.setScalar(luminance);
           envScene.add(m);
-        }
-        // a few asymmetric panels for nice glints/reflections
-        panel(-2.2, 2.1, -3.0, 0.0, 0.0, 3.0, 2.0, 3.0);
-        panel(3.0, -1.0, 2.2, 0.0, Math.PI / 2, 2.0, 1.5, 2.4);
-        panel(-3.2, -2.0, 1.0, 0.0, -Math.PI / 2, 1.4, 2.4, 2.1);
+        });
 
-        // Bake environment for IBL/transmission
         const envRT = pmrem.fromScene(envScene, 0.04);
         scene.environment = envRT.texture;
 
-        // Materials (glass/water tuning; navy tint preserved)
-        const baseColor = 0x1c1a70; // 010155
-
-        const atomMat = new THREE.MeshPhysicalMaterial({
-          color: baseColor,
-          roughness: 0.08, // cleaner highlights
-          metalness: 0.0, // glass is dielectric
+        // Material setup
+        atomMat = new THREE.MeshPhysicalMaterial({
+          color: CONFIG.BASE_COLOR,
+          roughness: 0.08,
+          metalness: 0.0,
           clearcoat: 1.0,
           clearcoatRoughness: 0.06,
-          transmission: 0.9, // strong transmission
-          ior: 1.333, // water-like IOR
-          thickness: 0.4, // more body for internal darkening
-          attenuationColor: new THREE.Color(baseColor),
-          attenuationDistance: 1.6, // shorter distance: richer tint without going murky
-          envMapIntensity: 1.25, // brighter reflections/refractions from env
-          opacity: 1.0, // fully present (transmission handles “glassiness”)
+          transmission: 0.9,
+          ior: 1.333,
+          thickness: 0.4,
+          attenuationColor: new THREE.Color(CONFIG.BASE_COLOR),
+          attenuationDistance: 1.6,
+          envMapIntensity: 1.25,
+          opacity: 1.0,
+          transparent: true,
         });
 
-        const bondMat = atomMat.clone();
-        // Slightly less transmissive rods keep joints readable
+        bondMat = atomMat.clone();
         bondMat.transmission = 0.82;
         bondMat.thickness = 0.34;
         bondMat.envMapIntensity = 1.15;
 
-        atomMat.transparent = true;
-        bondMat.transparent = true;
-        // Keep depthWrite ON for now to avoid ordering mess; renderOrder already enforces a stable stack.
-        // If you later want true see-through overlaps, we’ll flip these to false and harden ordering:
-        // atomMat.depthWrite = false;
-        // bondMat.depthWrite = false;
+        // Geometry setup - create once and reuse
+        atomGeo = new THREE.SphereGeometry(CONFIG.BASE_RADIUS, 48, 48);
+        halfGeo = new THREE.CylinderGeometry(
+          CONFIG.BOND_RADIUS,
+          CONFIG.BOND_RADIUS,
+          1,
+          24
+        );
+        halfGeo.translate(0, 0.5, 0);
+        capGeo = new THREE.SphereGeometry(CONFIG.BOND_RADIUS * 1.15, 24, 18);
 
-        // Deterministic random so the initial scatter is stable per reload
-        function seeded(i) {
-          return Math.sin(i * 16807.123) % 1;
-        }
-        function rand(i, min, max) {
-          const r = Math.abs(seeded(i));
-          return min + r * (max - min);
-        }
-
-        const baseRadius = 0.5;
-
-        // Root for everything in the molecule hero
+        // Molecule structure
         molecule = new THREE.Group();
         scene.add(molecule);
 
-        const masterSurface = new THREE.Group(); // local Y ⟂ MASTERSURFACE
+        const masterSurface = new THREE.Group();
         molecule.add(masterSurface);
 
         const centerGroup = new THREE.Group();
@@ -326,342 +316,125 @@
         masterSurface.add(centerGroup, ringGroup);
         masterSurface.rotation.set(Math.PI / 1.5, -0.2, 0.0);
 
-        // Geometry radius must match baseRadius so bond halves start at the true surface
-        const atomGeo = new THREE.SphereGeometry(baseRadius, 48, 48);
-
-        // Central atom: fixed position & constant scale (storyboard panel 1)
-        const center = new THREE.Mesh(atomGeo, atomMat);
+        // Central atom
+        center = new THREE.Mesh(atomGeo, atomMat);
         center.position.set(0, 0, 0);
-        center.scale.setScalar(1); // constant; no growth/tween
+        center.scale.setScalar(1);
         centerGroup.add(center);
         center.renderOrder = 0;
 
-        // Outer atoms (A..E) placed ON the MASTERSURFACE plane (z=0 in its local space).
-        // Depth differences now come from the plane tilt (PATCH A), not per-atom Z.
-        const Rplane = 2.9; // ring radius in the MASTERSURFACE plane
-        const baseAngle = Math.PI / 2; // A at top
+        // Outer atoms positions
+        const baseAngle = Math.PI / 2;
         const step = (2 * Math.PI) / 5;
 
         const startRing = Array.from({ length: 5 }, (_, i) => {
-          const ang = baseAngle - i * step; // A,B,C,D,E around the circle
+          const ang = baseAngle - i * step;
           return new THREE.Vector3(
-            Math.cos(ang) * Rplane,
-            Math.sin(ang) * Rplane,
+            Math.cos(ang) * CONFIG.RING_RADIUS,
+            Math.sin(ang) * CONFIG.RING_RADIUS,
             0
           );
         });
 
-        const atoms = [
-          { id: "A" },
-          { id: "B" },
-          { id: "C" },
-          { id: "D" },
-          { id: "E" },
-        ].map((d, i) => {
+        // Create atoms
+        atoms = Array.from({ length: 5 }, (_, i) => {
           const m = new THREE.Mesh(atomGeo, atomMat);
-          m.position.copy(startRing[i]); // A..E with planned depths
-          m.scale.setScalar(1.2 + Math.random() * 0.45); // no growth now (you disabled growth phase)
+          m.position.copy(startRing[i]);
+          m.scale.setScalar(1.2 + Math.random() * 0.45);
           ringGroup.add(m);
           m.renderOrder = 2;
           return m;
         });
 
-        // --- Targets & via control points (for assembly) ---
-        // Snapshot *after* random spawn so we can tween from these
         const startPositions = atoms.map((m) => m.position.clone());
 
-        // Non-coplanar hub-and-spokes (1 center + 5 outers):
-        // Use two **axial** positions (±Z) and three **equatorial** on XY.
-        // Keeps all center↔outer distances == R.
-        const R = 1.8;
+        // Target positions
+        const R = CONFIG.TARGET_RADIUS;
         const targets = [
-          new THREE.Vector3(0.0, 0.0, R), // 0 axial +Z
-          new THREE.Vector3(0.0, 0.0, -R), // 1 axial −Z
-          new THREE.Vector3(0.0, R, 0.0), // 2 equatorial
+          new THREE.Vector3(0.0, 0.0, R),
+          new THREE.Vector3(0.0, 0.0, -R),
+          new THREE.Vector3(0.0, R, 0.0),
           new THREE.Vector3(
-            R * Math.cos(-Math.PI / 6), // 3 equatorial
+            R * Math.cos(-Math.PI / 6),
             R * Math.sin(-Math.PI / 6),
             0.0
           ),
           new THREE.Vector3(
-            R * Math.cos((7 * Math.PI) / 6), // 4 equatorial
+            R * Math.cos((7 * Math.PI) / 6),
             R * Math.sin((7 * Math.PI) / 6),
             0.0
           ),
         ];
 
-        // Gentle 3D approach arcs (keep Z modest; axial paths bow toward ±Z)
-        // Build bowed (rounded) quadratic control points for smooth arcs
-        function bowedVia(p0, p2, bulge = 0.42, sign = 1) {
-          // chord and midpoint
-          const chord = p2.clone().sub(p0);
-          const mid = p0.clone().add(p2).multiplyScalar(0.5);
+        // Optimized elliptical via calculation
+        function createEllipticalVia(
+          startPos,
+          targetPos,
+          centerPos = new THREE.Vector3(0, 0, 0)
+        ) {
+          const { v1: toStart, v2: toTarget, v3: midpoint } = tempVectors;
 
-          // plane through origin (center) spanned by p0 & p2
-          const planeN = p0.clone().cross(p2).normalize(); // normal of that plane
+          toStart.subVectors(startPos, centerPos);
+          toTarget.subVectors(targetPos, centerPos);
+          midpoint.addVectors(startPos, targetPos).multiplyScalar(0.5);
 
-          // in-plane normal perpendicular to chord (tilt direction)
-          const bulgeDir = planeN.clone().cross(chord).normalize(); // lies in the p0–p2 plane
+          const chord = tempVectors.dir.subVectors(targetPos, startPos);
+          const chordLength = chord.length();
 
-          // amount of bow proportional to chord length
-          const bow = chord.length() * bulge * sign;
-
-          return mid.add(bulgeDir.multiplyScalar(bow));
-        }
-
-        // Choose signs so z-bias matches your previous look (0:+, 1:-, 2:-, 3:+, 4:-)
-        const bulgeSigns = [+1, -1, -1, +1, -1];
-
-        // Rebuild vias using the new geometry
-        const vias = {
-          0: bowedVia(startPositions[0], targets[0], 0.42, bulgeSigns[0]),
-          1: bowedVia(startPositions[1], targets[1], 0.42, bulgeSigns[1]),
-          2: bowedVia(startPositions[2], targets[2], 0.38, bulgeSigns[2]),
-          3: bowedVia(startPositions[3], targets[3], 0.38, bulgeSigns[3]),
-          4: bowedVia(startPositions[4], targets[4], 0.38, bulgeSigns[4]),
-        };
-
-        // Bond / cap dimensions (keep caps slightly fuller than the rod for a meniscus look)
-        const bondRadius = 0.14;
-        const halfGeo = new THREE.CylinderGeometry(
-          bondRadius,
-          bondRadius,
-          1,
-          24
-        );
-        halfGeo.translate(0, 0.5, 0);
-
-        // Meniscus/fillet: a small sphere used as a cap at each sphere↔rod interface
-        const capGeo = new THREE.SphereGeometry(bondRadius * 1.15, 24, 18);
-
-        const bonds = []; // { a, b, capA, capB, growth, outerIdx }
-
-        function createCenterBond(outerIdx) {
-          const aHalf = new THREE.Mesh(halfGeo, bondMat); // center-side half
-          const bHalf = new THREE.Mesh(halfGeo, bondMat); // outer-side half
-          aHalf.visible = bHalf.visible = false;
-          // Parent halves to molecule root so they aren’t double-transformed
-          molecule.add(aHalf, bHalf);
-          aHalf.renderOrder = 1;
-          bHalf.renderOrder = 1;
-
-          const capA = new THREE.Mesh(capGeo, bondMat);
-          const capB = new THREE.Mesh(capGeo, bondMat);
-          capA.visible = capB.visible = false;
-          molecule.add(capA, capB);
-          capA.renderOrder = 1;
-          capB.renderOrder = 1;
-
-          // Meniscus caps (center-side & outer-side)
-          const capC = new THREE.Mesh(capGeo, bondMat);
-          const capO = new THREE.Mesh(capGeo, bondMat);
-          capC.visible = capO.visible = false;
-          molecule.add(capC, capO);
-          capC.renderOrder = 1;
-          capO.renderOrder = 1;
-
-          // Keep glass draw order stable: center → bonds/caps → outers
-          aHalf.renderOrder = bHalf.renderOrder = 1;
-          capC.renderOrder = capO.renderOrder = 1;
-
-          const pair = {
-            a: aHalf,
-            b: bHalf,
-            capA: capC,
-            capB: capO,
-            growth: 0,
-            outerIdx,
-            oneSided: ALL_ONE_SIDED_BONDS || outerIdx === ONE_SIDED_OUTER_IDX,
-          };
-          bonds.push(pair);
-          return pair;
-        }
-
-        // Create five center↔outer bonds (order will be handled by the timeline)
-        createCenterBond(0);
-        createCenterBond(1);
-        createCenterBond(2);
-        createCenterBond(3);
-        createCenterBond(4);
-        for (const b of bonds) {
-          b.growth = 0;
-          b.a.visible = b.b.visible = false;
-        }
-
-        const UP = new THREE.Vector3(0, 1, 0);
-        const tmpDir = new THREE.Vector3();
-        const tmpDirN = new THREE.Vector3(); // normalized direction
-        const tmpV1 = new THREE.Vector3(); // scratch mul/add
-        const tmpV2 = new THREE.Vector3(); // scratch mul/add
-        const tmpNeg = new THREE.Vector3();
-
-        // Bonds should be present the whole time for this storyboard phase
-
-        // temp vectors reused each call
-        const tmpCw = new THREE.Vector3(); // center world
-        const tmpOw = new THREE.Vector3(); // outer world
-        const tmpCl = new THREE.Vector3(); // center in molecule space
-        const tmpOl = new THREE.Vector3(); // outer in molecule space
-
-        function positionCenterBond(pair) {
-          // 1) sample **world** positions
-          center.getWorldPosition(tmpCw);
-          atoms[pair.outerIdx].getWorldPosition(tmpOw);
-
-          // 2) convert to the bond's parent space (molecule)
-          tmpCl.copy(tmpCw);
-          molecule.worldToLocal(tmpCl);
-          tmpOl.copy(tmpOw);
-          molecule.worldToLocal(tmpOl);
-
-          // 3) direction & distances in **molecule space**
-          tmpDir.subVectors(tmpOl, tmpCl);
-          const centerDist = tmpDir.length();
-          // const g = pair.growth;
-          // const show = g > CAP_VIS_EPS;
-          // pair.a.visible = show;
-          // pair.b.visible = show;
-          // pair.capA.visible = show;
-          // pair.capB.visible = show;
-          const g = pair.growth;
-          const show = g > CAP_VIS_EPS;
-
-          // Smooth shrink/grow of caps so they never linger as dots
-          const t = Math.min(
-            Math.max((g - CAP_SHRINK_IN) / (CAP_SHRINK_OUT - CAP_SHRINK_IN), 0),
-            1
-          );
-          const s = CAP_SCALE * t;
-          pair.capA.scale.setScalar(s);
-          pair.capB.scale.setScalar(s);
-
-          const rC = baseRadius * center.scale.x;
-          const rO = baseRadius * atoms[pair.outerIdx].scale.x;
-
-          const coreLen = Math.max(0, centerDist - (rC + rO));
-          const halfLen = coreLen * 0.5;
-
-          // if (halfLen <= 1e-6 || g <= 0) {
-          //   pair.a.visible = pair.b.visible = false;
-          //   return;
-          // }
-
-          const dir = tmpDirN.copy(tmpDir).normalize();
-
-          // Center-side half (aiming outward from **tmpCl**)
-          // pair.a.visible = true;
-          // pair.a.position.copy(tmpCl).add(dir.clone().multiplyScalar(rC));
-          // pair.a.quaternion.setFromUnitVectors(UP, dir);
-          // pair.a.scale.set(1, halfLen * g, 1);
-
-          // // Outer-side half (aiming inward from **tmpOl**)
-          // pair.b.visible = true;
-          // pair.b.position.copy(tmpOl).add(tmpV2.copy(dir).multiplyScalar(-rO));
-          // tmpNeg.copy(dir).multiplyScalar(-1);
-          // pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
-          // pair.b.scale.set(1, halfLen * g, 1);
-
-          // // Meniscus caps at each interface (visible once growth begins)
-          // const showCap = g > 0.001;
-
-          // // Place caps right where the rod meets each sphere surface
-          // pair.capA.position
-          //   .copy(tmpCl)
-          //   .add(tmpV1.copy(dir).multiplyScalar(rC));
-          // pair.capB.position
-          //   .copy(tmpOl)
-          //   .add(tmpV2.copy(dir).multiplyScalar(-rO));
-          if (ALL_ONE_SIDED_BONDS || pair.oneSided) {
-            // --- One-sided growth: OUTER → CENTER ---
-            const len = coreLen * g;
-            const visible = show && len > 1e-6;
-
-            // hide center half entirely
-            pair.a.visible = false;
-
-            // grow a single rod from the OUTER surface toward the center
-            pair.b.visible = visible;
-            pair.b.position
-              .copy(tmpOl)
-              .add(tmpV2.copy(dir).multiplyScalar(-rO));
-            tmpNeg.copy(dir).multiplyScalar(-1);
-            pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
-            pair.b.scale.set(1, len, 1); // full length, not half
-
-            // caps: outer cap from the start; center cap appears only near completion
-            const showCapOuter = g > 0.001;
-            const showCapCenter = g > 0.95;
-            pair.capB.visible = showCapOuter;
-            pair.capB.position
-              .copy(tmpOl)
-              .add(tmpV2.copy(dir).multiplyScalar(-rO));
-            pair.capB.scale.setScalar(s);
-
-            pair.capA.visible = showCapCenter;
-            if (showCapCenter) {
-              pair.capA.position
-                .copy(tmpCl)
-                .add(tmpV1.copy(dir).multiplyScalar(rC));
-              pair.capA.scale.setScalar(CAP_SCALE);
-            }
-            return; // done
-          } else {
-            // --- Symmetric growth (current behavior) ---
-            if (halfLen <= 1e-6 || g <= 0) {
-              pair.a.visible = pair.b.visible = false;
-              pair.capA.visible = pair.capB.visible = false;
-              return;
-            }
-            pair.a.visible = show;
-            pair.b.visible = show;
-            pair.capA.visible = show;
-            pair.capB.visible = show;
-
-            // center-side half
-            pair.a.position.copy(tmpCl).add(tmpV1.copy(dir).multiplyScalar(rC));
-            pair.a.quaternion.setFromUnitVectors(UP, dir);
-            pair.a.scale.set(1, halfLen * g, 1);
-
-            // outer-side half
-            pair.b.position
-              .copy(tmpOl)
-              .add(tmpV2.copy(dir).multiplyScalar(-rO));
-            tmpNeg.copy(dir).multiplyScalar(-1);
-            pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
-            pair.b.scale.set(1, halfLen * g, 1);
-
-            // caps at both ends
-            pair.capA.position
-              .copy(tmpCl)
-              .add(tmpV1.copy(dir).multiplyScalar(rC));
-            pair.capB.position
-              .copy(tmpOl)
-              .add(tmpV2.copy(dir).multiplyScalar(-rO));
-            pair.capA.scale.setScalar(s);
-            pair.capB.scale.setScalar(s);
+          const orbitalNormal = toStart.clone().cross(toTarget).normalize();
+          if (orbitalNormal.length() < 0.001) {
+            orbitalNormal.set(0, 0, 1);
           }
+
+          let bulgeDirection = orbitalNormal.clone().cross(chord).normalize();
+          const midToCenter = tempVectors.v1.subVectors(centerPos, midpoint);
+          if (bulgeDirection.dot(midToCenter) > 0) {
+            bulgeDirection.multiplyScalar(-1);
+          }
+
+          const bulgeAmount = chordLength * CONFIG.BULGE_RATIO;
+          return midpoint
+            .clone()
+            .add(bulgeDirection.multiplyScalar(bulgeAmount));
         }
 
-        // Build a small LUT for arc-length → parameter mapping
-        function buildBezierLUT(p0, p1, p2, samples = 240) {
+        const centerWorldPos = new THREE.Vector3(0, 0, 0);
+        const vias = atoms.map((_, i) =>
+          createEllipticalVia(startPositions[i], targets[i], centerWorldPos)
+        );
+
+        // Optimized Bezier LUT with reduced samples
+        function buildSmoothBezierLUT(
+          p0,
+          p1,
+          p2,
+          samples = CONFIG.LUT_SAMPLES
+        ) {
           const pts = new Array(samples + 1);
           const len = new Float32Array(samples + 1);
           let acc = 0;
+
           for (let i = 0; i <= samples; i++) {
-            const t = i / samples,
-              it = 1 - t;
+            let t = i / samples;
+            t = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
+
+            const it = 1 - t;
             const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
             const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
             const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
+
             pts[i] = new THREE.Vector3(x, y, z);
-            if (i) acc += pts[i].distanceTo(pts[i - 1]);
+            if (i > 0) {
+              acc += pts[i].distanceTo(pts[i - 1]);
+            }
             len[i] = acc;
           }
+
           return { pts, len, total: acc };
         }
+
         function tFromS(lut, s) {
           const target = s * lut.total;
-          // binary search
           let lo = 0,
             hi = lut.len.length - 1;
           while (lo < hi) {
@@ -674,18 +447,20 @@
           const f = (target - l0) / Math.max(1e-6, l1 - l0);
           return (i - 1 + f) / (lut.len.length - 1);
         }
-        function moveAlongQuadraticCS(atomIdx, p0, p1, p2, tl, dur, at) {
-          const lut = buildBezierLUT(p0, p1, p2, 80);
-          const proxy = { s: 0 }; // normalized distance
+
+        function moveAlongSmoothQuadratic(atomIdx, p0, p1, p2, tl, dur, at) {
+          const lut = buildSmoothBezierLUT(p0, p1, p2);
+          const proxy = { s: 0 };
+
           tl.to(
             proxy,
             {
               s: 1,
               duration: dur,
-              ease: "none", // constant-speed in arc length
+              ease: "power1.inOut",
               onUpdate: () => {
-                const t = tFromS(lut, proxy.s),
-                  it = 1 - t;
+                const t = tFromS(lut, proxy.s);
+                const it = 1 - t;
                 const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
                 const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
                 const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
@@ -696,54 +471,185 @@
           );
         }
 
-        // Micro-drift (very subtle, no Z)
-        let t = 0;
+        // Bond creation
+        function createCenterBond(outerIdx) {
+          const aHalf = new THREE.Mesh(halfGeo, bondMat);
+          const bHalf = new THREE.Mesh(halfGeo, bondMat);
+          aHalf.visible = bHalf.visible = false;
+          molecule.add(aHalf, bHalf);
+          aHalf.renderOrder = 1;
+          bHalf.renderOrder = 1;
+
+          const capC = new THREE.Mesh(capGeo, bondMat);
+          const capO = new THREE.Mesh(capGeo, bondMat);
+          capC.visible = capO.visible = false;
+          molecule.add(capC, capO);
+          capC.renderOrder = 1;
+          capO.renderOrder = 1;
+
+          const pair = {
+            a: aHalf,
+            b: bHalf,
+            capA: capC,
+            capB: capO,
+            growth: 0,
+            outerIdx,
+            oneSided: true,
+          };
+          bonds.push(pair);
+          return pair;
+        }
+
+        // Create bonds
+        for (let i = 0; i < 5; i++) {
+          createCenterBond(i);
+        }
+
+        // Optimized bond positioning
+        function positionCenterBond(pair) {
+          const {
+            tmpCw,
+            tmpOw,
+            tmpCl,
+            tmpOl,
+            dir,
+            dirN,
+            v1: tmpV1,
+            v2: tmpV2,
+            tmpNeg,
+          } = tempVectors;
+
+          center.getWorldPosition(tmpCw);
+          atoms[pair.outerIdx].getWorldPosition(tmpOw);
+
+          tmpCl.copy(tmpCw);
+          molecule.worldToLocal(tmpCl);
+          tmpOl.copy(tmpOw);
+          molecule.worldToLocal(tmpOl);
+
+          dir.subVectors(tmpOl, tmpCl);
+          const centerDist = dir.length();
+          const g = pair.growth;
+          const show = g > CONFIG.CAP_VIS_EPS;
+
+          const t = Math.min(
+            Math.max(
+              (g - CONFIG.CAP_SHRINK_IN) /
+                (CONFIG.CAP_SHRINK_OUT - CONFIG.CAP_SHRINK_IN),
+              0
+            ),
+            1
+          );
+          const s = CONFIG.CAP_SCALE * t;
+          pair.capA.scale.setScalar(s);
+          pair.capB.scale.setScalar(s);
+
+          const rC = CONFIG.BASE_RADIUS * center.scale.x;
+          const rO = CONFIG.BASE_RADIUS * atoms[pair.outerIdx].scale.x;
+          const coreLen = Math.max(0, centerDist - (rC + rO));
+          const len = coreLen * g;
+          const visible = show && len > 1e-6;
+
+          dirN.copy(dir).normalize();
+
+          // One-sided growth optimization
+          pair.a.visible = false;
+          pair.b.visible = visible;
+
+          if (visible) {
+            pair.b.position
+              .copy(tmpOl)
+              .add(tmpV2.copy(dirN).multiplyScalar(-rO));
+            tmpNeg.copy(dirN).multiplyScalar(-1);
+            pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
+            pair.b.scale.set(1, len, 1);
+          }
+
+          const showCapOuter = g > 0.001;
+          const showCapCenter = g > 0.95;
+
+          pair.capB.visible = showCapOuter;
+          if (showCapOuter) {
+            pair.capB.position
+              .copy(tmpOl)
+              .add(tmpV2.copy(dirN).multiplyScalar(-rO));
+            pair.capB.scale.setScalar(s);
+          }
+
+          pair.capA.visible = showCapCenter;
+          if (showCapCenter) {
+            pair.capA.position
+              .copy(tmpCl)
+              .add(tmpV1.copy(dirN).multiplyScalar(rC));
+            pair.capA.scale.setScalar(CONFIG.CAP_SCALE);
+          }
+        }
+
+        // Enhanced render loop with continuous motion
+        let time = 0;
+        let isScrollComplete = false;
+        let isFinalized = false;
+        let enableFinalMotion = false;
+        let finalBlend = 0;
+
         function render() {
-          t += 0.01;
+          time += 0.008; // Control speed of continuous motion
 
-          // No drift (per spec) — atoms stay fixed unless GSAP rotates the ring
-          // Ensure transforms from GSAP are applied before we read positions
+          // Apply continuous motion only after scroll animation completes
+          if (enableFinalMotion || finalBlend > 0) {
+            const spinMix = enableFinalMotion ? 1 : finalBlend;
+
+            // additive, so it won't fight GSAP's masterSurface rotation
+            molecule.rotation.y += 0.0025 * spinMix;
+            molecule.rotation.x += Math.sin(time * 0.8) * 0.0012 * spinMix;
+            molecule.rotation.z += Math.cos(time * 0.6) * 0.0008 * spinMix;
+
+            // breathing (kept as-is)
+            atoms.forEach((atom, i) => {
+              const offset = i * 0.8;
+              const vibration = Math.sin(time * 1.2 + offset) * 0.002 * spinMix;
+              const baseScale = atom.userData.baseScale || atom.scale.x;
+              atom.scale.setScalar(baseScale + vibration);
+            });
+            const centerBreathing = Math.sin(time * 0.9) * 0.003 * spinMix;
+            const centerBaseScale = center.userData.baseScale || center.scale.x;
+            center.scale.setScalar(centerBaseScale + centerBreathing);
+          }
+
           scene.updateMatrixWorld(true);
-
-          // Keep bonds glued to both ends every frame
-          for (let i = 0; i < bonds.length; i++) positionCenterBond(bonds[i]);
-
-          // Draw and schedule next frame
+          bonds.forEach(positionCenterBond);
           renderer.render(scene, camera);
           rafId = requestAnimationFrame(render);
         }
         rafId = requestAnimationFrame(render);
 
-        // Resize/orientation
+        // Resize handling
         let resizeRAF;
         const onResize = () => {
-          // Use rect to avoid stale clientWidth during pin/unpin
           const rect = heroEl.getBoundingClientRect();
           const w = Math.max(1, Math.floor(rect.width));
           const h = Math.max(1, Math.floor(rect.height));
 
-          // DPR can change with zoom/orientation; recalc and cap
           const isCoarse = matchMedia("(pointer: coarse)").matches;
           const dprCap = isCoarse ? 1.75 : 2.0;
           const nextDpr = Math.min(window.devicePixelRatio || 1, dprCap);
-          if (renderer.getPixelRatio() !== nextDpr)
+          if (renderer.getPixelRatio() !== nextDpr) {
             renderer.setPixelRatio(nextDpr);
+          }
 
-          // Camera + renderer viewport
           camera.aspect = w / h;
           camera.updateProjectionMatrix();
           renderer.setSize(w, h, false);
           updateCameraForViewport();
 
-          // Recompute ScrollTrigger measurements after layout settles
           if (window.ScrollTrigger) {
             cancelAnimationFrame(resizeRAF);
             resizeRAF = requestAnimationFrame(() => ScrollTrigger.refresh());
           }
         };
+
         addEventListener("resize", onResize, { passive: true });
         addEventListener("orientationchange", onResize);
-        // Safari bfcache + mobile re-activation can yield stale sizes
         addEventListener(
           "pageshow",
           (e) => {
@@ -753,7 +659,7 @@
         );
         onResize();
 
-        // Master GSAP timeline: pin + scrub + assembly + orbit
+        // GSAP Timeline
         if (window.gsap && window.ScrollTrigger) {
           const PREFERS_REDUCED = window.matchMedia(
             "(prefers-reduced-motion: reduce)"
@@ -761,69 +667,116 @@
 
           updateCameraForViewport();
 
-          // Final static state (no scroll-scrub, no rotation)
           function finalizeStatic() {
-            atoms.forEach((m, i) => m.position.copy(targets[i]));
-
-            // Fully grow all bonds and show caps
+            atoms.forEach((m, i) => {
+              m.position.copy(targets[i]);
+              // Store base scale for breathing animation
+              m.userData.baseScale = m.scale.x;
+            });
             bonds.forEach((pair) => {
               pair.growth = 1;
-              // one-armed display: only outer→center rod is visible
               if (pair.a) pair.a.visible = false;
               if (pair.b) pair.b.visible = true;
-              if (pair.capA) pair.capA.visible = true; // center cap shown at completion
-              if (pair.capB) pair.capB.visible = true; // outer cap stays visible
-              positionCenterBond(pair); // compute final transforms once
+              if (pair.capA) pair.capA.visible = true;
+              if (pair.capB) pair.capB.visible = true;
+              positionCenterBond(pair);
             });
+
+            // Store final rotation and enable continuous motion
+            masterSurface.userData.finalRotation = {
+              x: masterSurface.rotation.x,
+              y: masterSurface.rotation.y,
+              z: masterSurface.rotation.z,
+            };
+            center.userData.baseScale = center.scale.x;
+            isScrollComplete = true;
+
             renderer.render(scene, camera);
-
-            // No rotation in reduced-motion
-            masterSurface.rotation.set(0, 0, 0);
-
-            // Copy: show final message only
             gsap.set("#copy1", { opacity: 0, y: -10 });
             gsap.set("#copy2", { opacity: 1, y: 0 });
           }
-          // Master GSAP timeline: full 3D rotation + sequential bond joins
+
           if (PREFERS_REDUCED) {
-            // Accessibility: present final composition as a static hero
             finalizeStatic();
             if (rafId) {
               cancelAnimationFrame(rafId);
               rafId = 0;
-            } // stop rendering
+            }
           } else {
-            gsap.ticker.lagSmoothing(0); // avoid "catch-up" jumps after stalls
+            gsap.ticker.lagSmoothing(0);
             const tl = gsap.timeline({
               defaults: { ease: "none" },
               scrollTrigger: {
+                id: "heroST",
                 trigger: heroEl,
                 start: "top top",
                 end: "+=180%",
                 scrub: 1.0,
                 pin: true,
-                anticipatePin: 1, // smoother pin handoff
-                invalidateOnRefresh: true, // recalc on resize/orientation
+                anticipatePin: 1,
+                invalidateOnRefresh: true,
+
+                onUpdate: (self) => {
+                  // NEW — ramp up pre-spin from 97%→100% while still pinned
+                  if (self.direction > 0) {
+                    finalBlend = gsap.utils.clamp(
+                      0,
+                      1,
+                      (self.progress - 0.97) / 0.03
+                    );
+                  } else {
+                    finalBlend = 0; // kill pre-spin on upward scrub so rollback feels clean
+                  }
+
+                  if (!isFinalized && self.progress >= 0.999) {
+                    masterSurface.userData.finalRotation = {
+                      x: masterSurface.rotation.x,
+                      y: masterSurface.rotation.y,
+                      z: masterSurface.rotation.z,
+                    };
+                    atoms.forEach((a) => (a.userData.baseScale = a.scale.x));
+                    center.userData.baseScale = center.scale.x;
+
+                    isScrollComplete = true;
+                    isFinalized = true;
+                  }
+                  // enable full free motion only once unpinned
+                  enableFinalMotion = isFinalized && !self.isActive;
+                },
+
                 onEnter: () => {
                   if (!rafId) rafId = requestAnimationFrame(render);
+                  finalBlend = 0; // reset pre-spin when re-entering
+                  enableFinalMotion = false;
                 },
                 onEnterBack: () => {
                   if (!rafId) rafId = requestAnimationFrame(render);
+                  finalBlend = 0;
+                  enableFinalMotion = false;
                 },
                 onLeave: () => {
-                  if (rafId) {
-                    cancelAnimationFrame(rafId);
-                    rafId = 0;
+                  if (!isFinalized) {
+                    if (rafId) {
+                      cancelAnimationFrame(rafId);
+                      rafId = 0;
+                    }
+                  } else {
+                    // immediately switch from pre-spin to full free motion after release
+                    enableFinalMotion = true;
+                    finalBlend = 0;
                   }
                 },
                 onLeaveBack: () => {
-                  if (rafId) {
+                  if (!isFinalized && rafId) {
                     cancelAnimationFrame(rafId);
                     rafId = 0;
                   }
+                  enableFinalMotion = false;
+                  finalBlend = 0;
                 },
               },
             });
+
             tl.set("#copy1", { opacity: 0, y: 12 });
             tl.set("#copy2", { opacity: 0, y: 12 });
 
@@ -832,22 +785,17 @@
               { opacity: 1, y: 0, duration: 0.12, ease: "power2.out" },
               0.22
             );
-
-            // Headline out (78%) before paragraph enters
             tl.to(
               "#copy1",
               { opacity: 0, y: -10, duration: 0.12, ease: "power1.out" },
               0.78
             );
-
-            // Paragraph in (82%) for the composed state
             tl.to(
               "#copy2",
               { opacity: 1, y: 0, duration: 0.18, ease: "power2.out" },
               0.82
             );
 
-            // 3D spin over the whole scroll: yaw 360°, gentle pitch/roll that return to start
             const yawTurn = Math.PI * 2;
             tl.to(
               masterSurface.rotation,
@@ -865,148 +813,62 @@
               0.5
             );
 
-            tl.to(
-              "#copy1",
-              { opacity: 1, y: 0, duration: 0.12, ease: "power2.out" },
-              0.22
-            );
-            tl.to(
-              "#copy1",
-              { opacity: 0, y: -10, duration: 0.12, ease: "power1.out" },
-              0.78
-            );
-            tl.to(
-              "#copy2",
-              { opacity: 1, y: 0, duration: 0.18, ease: "power2.out" },
-              0.82
-            );
-
-            // Sequential joins: five equal beats across the scroll
             const beat = 1 / 5;
-            const moveDur = beat * 0.95;
-            moveAlongQuadraticCS(
-              0,
-              startPositions[0],
-              vias[0],
-              targets[0],
-              tl,
-              moveDur,
-              0 * beat
-            );
-            moveAlongQuadraticCS(
-              1,
-              startPositions[1],
-              vias[1],
-              targets[1],
-              tl,
-              moveDur,
-              1 * beat
-            );
-            moveAlongQuadraticCS(
-              2,
-              startPositions[2],
-              vias[2],
-              targets[2],
-              tl,
-              moveDur,
-              2 * beat
-            );
-            moveAlongQuadraticCS(
-              3,
-              startPositions[3],
-              vias[3],
-              targets[3],
-              tl,
-              moveDur,
-              3 * beat
-            );
-            moveAlongQuadraticCS(
-              4,
-              startPositions[4],
-              vias[4],
-              targets[4],
-              tl,
-              moveDur,
-              4 * beat
-            );
-            tl.to(
-              bonds[0],
-              {
-                growth: 1,
-                duration: beat * 0.9,
-                ease: "power2.out",
-                onStart: () => {
-                  // bonds[0].a.visible = bonds[0].b.visible = true;
-                  const b = bonds[0];
-                  b.b.visible = true;
-                  b.a.visible = false;
+            const moveDur = beat * 0.98;
+
+            // Movement animations
+            for (let i = 0; i < 5; i++) {
+              moveAlongSmoothQuadratic(
+                i,
+                startPositions[i],
+                vias[i],
+                targets[i],
+                tl,
+                moveDur,
+                i * beat
+              );
+            }
+
+            // Bond growth animations
+            bonds.forEach((bond, i) => {
+              tl.to(
+                bond,
+                {
+                  growth: 1,
+                  duration: beat * 0.9,
+                  ease: "power2.out",
+                  onStart: () => {
+                    bond.b.visible = true;
+                    bond.a.visible = false;
+                  },
+                  onComplete: () => {
+                    // Enable continuous motion when the last bond completes
+                    if (i === bonds.length - 1) {
+                      // Store final rotation state
+                      masterSurface.userData.finalRotation = {
+                        x: masterSurface.rotation.x,
+                        y: masterSurface.rotation.y,
+                        z: masterSurface.rotation.z,
+                      };
+
+                      // Store base scales for breathing animation
+                      atoms.forEach((atom) => {
+                        atom.userData.baseScale = atom.scale.x;
+                      });
+                      center.userData.baseScale = center.scale.x;
+
+                      // Enable continuous motion
+                      isScrollComplete = true;
+                    }
+                  },
                 },
-              },
-              0 * beat + beat * 0.7
-            );
-            tl.to(
-              bonds[1],
-              {
-                growth: 1,
-                duration: beat * 0.9,
-                ease: "power2.out",
-                onStart: () => {
-                  // bonds[1].a.visible = bonds[1].b.visible = true;
-                  const b = bonds[1];
-                  b.b.visible = true;
-                  b.a.visible = false;
-                },
-              },
-              1 * beat + beat * 0.7
-            );
-            tl.to(
-              bonds[2],
-              {
-                growth: 1,
-                duration: beat * 0.9,
-                ease: "power2.out",
-                onStart: () => {
-                  // bonds[2].a.visible = bonds[2].b.visible = true;
-                  const b = bonds[2];
-                  b.b.visible = true;
-                  b.a.visible = false;
-                },
-              },
-              2 * beat + beat * 0.7
-            );
-            tl.to(
-              bonds[3],
-              {
-                growth: 1,
-                duration: beat * 0.9,
-                ease: "power2.out",
-                onStart: () => {
-                  // bonds[3].a.visible = bonds[3].b.visible = true;
-                  const b = bonds[3];
-                  b.b.visible = true;
-                  b.a.visible = false;
-                },
-              },
-              3 * beat + beat * 0.7
-            );
-            tl.to(
-              bonds[4],
-              {
-                growth: 1,
-                duration: beat * 0.9,
-                ease: "power2.out",
-                onStart: () => {
-                  // bonds[4].a.visible = bonds[4].b.visible = true;
-                  const b = bonds[4];
-                  b.b.visible = true;
-                  b.a.visible = false;
-                },
-              },
-              4 * beat + beat * 0.7
-            );
+                i * beat + beat * 0.7
+              );
+            });
           }
         }
-        // Hide poster once rendering is alive
+
+        // Hide poster and update status
         setTimeout(() => posterEl && posterEl.classList.add("hidden"), 150);
         statusEl.textContent = "Bonds visible + section pinned";
         setTimeout(() => statusEl.remove(), 700);
