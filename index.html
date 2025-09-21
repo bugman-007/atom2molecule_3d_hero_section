@@ -74,16 +74,17 @@
         text-wrap: balance;
       }
       #copy1 {
-        left: 4vw;
+        left: 10vw;
         top: 22vh;
         font-weight: 500;
-        font-size: clamp(30px, 5vw, 60px);
+        font-size: clamp(37px, 5vw, 80px);
         color: #e9eef6;
       }
       #copy2 {
         right: 5vw;
         top: 80vh;
         font-weight: 400;
+
         font-size: clamp(18px, 1.6vw, 24px);
         color: #d9e3ef;
         opacity: 0;
@@ -107,8 +108,8 @@
       />
       <div class="status" id="status">Bonds + Pin setup…</div>
       <div id="copy1" class="copy">
-        / IN THE<br />PURSUIT OF<br />
-        <span style="color: #f89a5f"> PROGRESS</span>
+        /&thinsp;IN THE<br />&nbsp; PURSUIT OF<br />
+        <span style="color: #f89a5f">&nbsp; PROGRESS</span>
       </div>
       <div id="copy2" class="copy">
         Chematek is an industrial technology company that offers products,
@@ -142,8 +143,29 @@
         TARGET_RADIUS: 1.8,
         BULGE_RATIO: 0.35,
         LUT_SAMPLES: 240, // Reduced from 320 for performance
-        BASE_COLOR: 0x1c1a70,
+        BASE_COLOR: 0x1a509b,
+        // BASE_COLOR: 0x0065b2,
+        // BASE_COLOR: 0x1c1a70,
       };
+
+      // === Liquid lag (first-order low-pass) =====================
+      const LAG = {
+        atom: 6.0, // s^-1   higher = snappier, lower = gooier
+        bond: 7.5, // s^-1   bonds can be a bit snappier
+        rotation: 3.8, // s^-1   overall group rotation lag
+      };
+
+      function dampNumber(cur, target, dt, lambda) {
+        const t = 1 - Math.exp(-lambda * dt);
+        return cur + (target - cur) * t;
+      }
+      function dampVec3(v, target, dt, lambda) {
+        const t = 1 - Math.exp(-lambda * dt);
+        v.x += (target.x - v.x) * t;
+        v.y += (target.y - v.y) * t;
+        v.z += (target.z - v.z) * t;
+        return v;
+      }
 
       // Cached reusable objects
       const tempVectors = {
@@ -316,7 +338,7 @@
         renderer.setPixelRatio(Math.min(devicePixelRatio || 1, dprCap));
         renderer.setSize(heroEl.clientWidth, heroEl.clientHeight, false);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.15;
+        renderer.toneMappingExposure = 1.0;
         renderer.physicallyCorrectLights = true;
         renderer.sortObjects = true;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -346,17 +368,12 @@
         camera.position.set(0, 0, 8);
 
         // Lighting setup
-        const key = new THREE.DirectionalLight(0xffd08a, 1.35); // warm/softbox feel
-        key.position.set(2.6, 2.2, 3.0);
-
-        const fill = new THREE.DirectionalLight(0xfff3cc, 0.25); // gentle warm fill
-        fill.position.set(-1.2, -0.2, 2.5);
-
-        const rim = new THREE.DirectionalLight(0xaecbff, 0.55); // cool opposite rim
-        rim.position.set(-3.2, 1.4, -2.2);
-
-        const amb = new THREE.AmbientLight(0x404040, 0.12); // darker ambient
-        scene.add(key, fill, rim, amb);
+        const key = new THREE.DirectionalLight(0xffffff, 2.75);
+        key.position.set(20.2, 30.0, 40.0);
+        const rim = new THREE.DirectionalLight(0xaecbff, 3.38);
+        rim.position.set(-3.0, 1.2, -2.2);
+        const amb = new THREE.AmbientLight(0xffffff, 0.08);
+        scene.add(key, rim, amb);
 
         // Environment setup
         const pmrem = new THREE.PMREMGenerator(renderer);
@@ -391,17 +408,17 @@
         // Material setup
         atomMat = new THREE.MeshPhysicalMaterial({
           color: CONFIG.BASE_COLOR,
-          roughness: 0.06,
-          metalness: 0.0,
-          clearcoat: 1.0,
+          roughness: 0.95,
+          metalness: 0.3,
+          clearcoat: 0.0,
           clearcoatRoughness: 0.02,
-          transmission: 0.9,
-          ior: 1.4,
-          thickness: 0.5,
+          transmission: 0.5,
+          ior: 3.1,
+          thickness: 0.3,
           attenuationColor: new THREE.Color(CONFIG.BASE_COLOR),
           attenuationDistance: 1.6,
           envMapIntensity: 1.46,
-          opacity: 1.0,
+          opacity: 1,
           transparent: true,
         });
 
@@ -432,6 +449,11 @@
         const ringGroup = new THREE.Group();
         masterSurface.add(centerGroup, ringGroup);
         masterSurface.rotation.set(Math.PI / 1.5, -0.2, 0.0);
+        masterSurface.userData.rotGoal = {
+          x: masterSurface.rotation.x,
+          y: masterSurface.rotation.y,
+          z: masterSurface.rotation.z,
+        };
 
         // Central atom
         center = new THREE.Mesh(atomGeo, atomMat);
@@ -464,6 +486,10 @@
         });
 
         const startPositions = atoms.map((m) => m.position.clone());
+
+        atoms.forEach((m) => {
+          m.userData.goal = m.position.clone();
+        });
 
         // Target positions
         const R = CONFIG.TARGET_RADIUS;
@@ -570,7 +596,7 @@
               ease: "power1.inOut", // keep your global feel; set "none" for uniform angular speed
               onUpdate: () => {
                 const u = uFromS(lut, proxy.s);
-                atoms[atomIdx].position.copy(sampler(u));
+                atoms[atomIdx].userData.goal.copy(sampler(u));
               },
             },
             at
@@ -704,6 +730,7 @@
             capA: capC,
             capB: capO,
             growth: 0,
+            growthGoal: 0,
             outerIdx,
             oneSided: true,
           };
@@ -802,9 +829,51 @@
         let isFinalized = false;
         let enableFinalMotion = false;
         let finalBlend = 0;
+        const clock = new THREE.Clock();
 
         function render() {
+          const dt = clock.getDelta();
           time += 0.008; // Control speed of continuous motion
+
+          // 1) viscous group rotation
+          if (masterSurface.userData.rotGoal) {
+            const g = masterSurface.userData.rotGoal;
+            masterSurface.rotation.x = dampNumber(
+              masterSurface.rotation.x,
+              g.x,
+              dt,
+              LAG.rotation
+            );
+            masterSurface.rotation.y = dampNumber(
+              masterSurface.rotation.y,
+              g.y,
+              dt,
+              LAG.rotation
+            );
+            masterSurface.rotation.z = dampNumber(
+              masterSurface.rotation.z,
+              g.z,
+              dt,
+              LAG.rotation
+            );
+          }
+
+          // 2) viscous atom following
+          for (let i = 0; i < atoms.length; i++) {
+            const a = atoms[i];
+            const goal = a.userData.goal || a.position;
+            dampVec3(a.position, goal, dt, LAG.atom);
+          }
+
+          // 3) viscous bond growth
+          for (const pair of bonds) {
+            pair.growth = dampNumber(
+              pair.growth,
+              pair.growthGoal ?? pair.growth,
+              dt,
+              LAG.bond
+            );
+          }
 
           // Apply continuous motion only after scroll animation completes
           if (enableFinalMotion || finalBlend > 0) {
@@ -1009,17 +1078,17 @@
 
             const yawTurn = Math.PI * 2;
             tl.to(
-              masterSurface.rotation,
+              masterSurface.userData.rotGoal,
               { y: "+=" + yawTurn, duration: 1 },
               0
             );
             tl.to(
-              masterSurface.rotation,
+              masterSurface.userData.rotGoal,
               { x: "+=0.28", z: "-=0.22", duration: 0.5, ease: "sine.inOut" },
               0
             );
             tl.to(
-              masterSurface.rotation,
+              masterSurface.userData.rotGoal,
               { x: "-=0.28", z: "+=0.22", duration: 0.5, ease: "sine.inOut" },
               0.5
             );
@@ -1044,7 +1113,7 @@
               tl.to(
                 bond,
                 {
-                  growth: 1,
+                  growthGoal: 1,
                   duration: beat * 0.9,
                   ease: "power2.out",
                   onStart: () => {
