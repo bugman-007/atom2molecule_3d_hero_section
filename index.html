@@ -76,19 +76,25 @@
       #copy1 {
         left: 10vw;
         top: 22vh;
-        font-weight: 500;
-        font-size: clamp(37px, 5vw, 80px);
+        font-family: "Archimoto V01 Regular", system-ui, Arial, sans-serif;
+        font-weight: 400;
+        font-size: clamp(48px, 6vw, 96px);
+        line-height: 1;
         color: #e9eef6;
+        letter-spacing: -0.02em;
       }
+
       #copy2 {
         right: 5vw;
         top: 80vh;
-        font-weight: 400;
-
-        font-size: clamp(18px, 1.6vw, 24px);
+        font-family: "Space Grotesk Medium", system-ui, Arial, sans-serif;
+        font-weight: 500;
+        font-size: clamp(16px, 1.6vw, 20px);
+        line-height: 2.25;
         color: #d9e3ef;
         opacity: 0;
         pointer-events: none;
+        max-width: 52ch;
       }
 
       #after {
@@ -368,11 +374,13 @@
         camera.position.set(0, 0, 8);
 
         // Lighting setup
-        const key = new THREE.DirectionalLight(0xffffff, 2.75);
+        const key = new THREE.DirectionalLight(0xfff4e6, 2.75); // Warmer key light
         key.position.set(20.2, 30.0, 40.0);
-        const rim = new THREE.DirectionalLight(0xaecbff, 3.38);
+
+        const rim = new THREE.DirectionalLight(0xf49a59, 3.38); // Client's requested #f49a59
         rim.position.set(-3.0, 1.2, -2.2);
-        const amb = new THREE.AmbientLight(0xffffff, 0.08);
+
+        const amb = new THREE.AmbientLight(0xfff4e6, 0.12); // Warmer ambient
         scene.add(key, rim, amb);
 
         // Environment setup
@@ -386,12 +394,12 @@
         );
         envScene.add(room);
 
-        // Environment panels
+        // Update environment panels for warmer lighting
         const panelConfigs = [
           // x,   y,   z,   rx,  ry,              w,   h,     hexColor,  intensity
-          [-2.2, 2.1, -3.0, 0.0, 0.0, 3.2, 2.2, 0xfff0d6, 2.9], // warm keybox
-          [3.0, -1.0, 2.2, 0.0, Math.PI / 2, 2.2, 1.7, 0xffffff, 2.2], // neutral fill
-          [-3.2, -2.0, 1.0, 0.0, -Math.PI / 2, 1.6, 2.3, 0xdbe8ff, 1.7], // cool rim
+          [-2.2, 2.1, -3.0, 0.0, 0.0, 3.2, 2.2, 0xffd6b8, 2.9], // Warmer keybox
+          [3.0, -1.0, 2.2, 0.0, Math.PI / 2, 2.2, 1.7, 0xfff0e0, 2.2], // Warm fill
+          [-3.2, -2.0, 1.0, 0.0, -Math.PI / 2, 1.6, 2.3, 0xf49a59, 1.7], // Client's orange
         ];
 
         panelConfigs.forEach(([x, y, z, rx, ry, w, h, hex, inten]) => {
@@ -585,18 +593,48 @@
         }
 
         function moveAlongSphericalArc(atomIdx, p0, p1, tl, dur, at) {
-          const sampler = buildSphericalArcSampler(p0, p1);
-          const lut = buildArcLUT(sampler);
-          const proxy = { s: 0 };
+          const proxy = { progress: 0 };
+
           tl.to(
             proxy,
             {
-              s: 1,
+              progress: 1,
               duration: dur,
-              ease: "power1.inOut", // keep your global feel; set "none" for uniform angular speed
+              ease: "none", // Linear movement for consistent speed
               onUpdate: () => {
-                const u = uFromS(lut, proxy.s);
-                atoms[atomIdx].userData.goal.copy(sampler(u));
+                // Simple spherical linear interpolation for constant angular velocity
+                const center = new THREE.Vector3(0, 0, 0);
+                const v0 = p0.clone().sub(center);
+                const v1 = p1.clone().sub(center);
+
+                const radius0 = v0.length();
+                const radius1 = v1.length();
+
+                v0.normalize();
+                v1.normalize();
+
+                const dot = v0.dot(v1);
+                const angle = Math.acos(THREE.MathUtils.clamp(dot, -1, 1));
+
+                if (angle > 0.001) {
+                  const t = proxy.progress;
+                  const radius = THREE.MathUtils.lerp(radius0, radius1, t);
+                  const interpolated = new THREE.Vector3()
+                    .copy(v0)
+                    .multiplyScalar(Math.sin((1 - t) * angle) / Math.sin(angle))
+                    .add(
+                      v1
+                        .clone()
+                        .multiplyScalar(Math.sin(t * angle) / Math.sin(angle))
+                    )
+                    .normalize()
+                    .multiplyScalar(radius);
+
+                  atoms[atomIdx].userData.goal.copy(interpolated.add(center));
+                } else {
+                  // Fallback to linear interpolation if angles are too small
+                  atoms[atomIdx].userData.goal.lerpVectors(p0, p1, t);
+                }
               },
             },
             at
@@ -694,7 +732,7 @@
             {
               s: 1,
               duration: dur,
-              ease: "power1.inOut",
+              ease: "none",
               onUpdate: () => {
                 const t = tFromS(lut, proxy.s);
                 const it = 1 - t;
@@ -1062,8 +1100,8 @@
 
             tl.to(
               "#copy1",
-              { opacity: 1, y: 0, duration: 0.12, ease: "power2.out" },
-              0.22
+              { opacity: 1, y: 0, duration: 0.16, ease: "power2.out" },
+              0.42 // Start after 2nd bond begins forming (was 0.22)
             );
             tl.to(
               "#copy1",
