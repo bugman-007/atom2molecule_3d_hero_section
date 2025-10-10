@@ -412,6 +412,8 @@
           m.material.color.multiplyScalar(inten);
           envScene.add(m);
         });
+        const envRT = pmrem.fromScene(envScene, 0.04);
+scene.environment = envRT.texture;
 
         // Material setup
         atomMat = new THREE.MeshPhysicalMaterial({
@@ -685,23 +687,20 @@
           p2,
           samples = CONFIG.LUT_SAMPLES
         ) {
+          samples = Math.max(8, samples | 0); // guard: at least 8 samples
           const pts = new Array(samples + 1);
           const len = new Float32Array(samples + 1);
           let acc = 0;
 
           for (let i = 0; i <= samples; i++) {
-            let t = i / samples;
-            t = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);
-
+            const t = i / samples; // LINEAR t only (no easing)
             const it = 1 - t;
             const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
             const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
             const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
 
             pts[i] = new THREE.Vector3(x, y, z);
-            if (i > 0) {
-              acc += pts[i].distanceTo(pts[i - 1]);
-            }
+            if (i > 0) acc += pts[i].distanceTo(pts[i - 1]);
             len[i] = acc;
           }
 
@@ -709,20 +708,30 @@
         }
 
         function tFromS(lut, s) {
+          // clamp s to [0,1]
+          s = s <= 0 ? 0 : s >= 1 ? 1 : s;
           const target = s * lut.total;
+
+          // trivial edges
+          if (target <= 0) return 0;
+          const lastIdx = lut.len.length - 1;
+          if (target >= lut.len[lastIdx]) return 1;
+
+          // binary search
           let lo = 0,
-            hi = lut.len.length - 1;
+            hi = lastIdx;
           while (lo < hi) {
             const mid = (lo + hi) >> 1;
-            lut.len[mid] < target ? (lo = mid + 1) : (hi = mid);
+            if (lut.len[mid] < target) lo = mid + 1;
+            else hi = mid;
           }
+
           const i = Math.max(1, lo);
           const l0 = lut.len[i - 1],
             l1 = lut.len[i];
-          const f = (target - l0) / Math.max(1e-6, l1 - l0);
-          return (i - 1 + f) / (lut.len.length - 1);
+          const f = (target - l0) / Math.max(1e-9, l1 - l0);
+          return (i - 1 + f) / lastIdx;
         }
-
         function moveAlongSmoothQuadratic(atomIdx, p0, p1, p2, tl, dur, at) {
           const lut = buildSmoothBezierLUT(p0, p1, p2);
           const proxy = { s: 0 };
@@ -740,6 +749,7 @@
                 const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
                 const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
                 atoms[atomIdx].position.set(x, y, z);
+                atoms[atomIdx].userData.goal = null; // stays off during Bezier flight
               },
             },
             at
@@ -857,7 +867,7 @@
             pair.capA.position
               .copy(tmpCl)
               .add(tmpV1.copy(dirN).multiplyScalar(rC));
-            pair.capA.scale.setScalar(CONFIG.CAP_SCALE);
+            pair.capA.scale.setScalar(s);
           }
         }
 
@@ -866,6 +876,8 @@
         let isScrollComplete = false;
         let isFinalized = false;
         let enableFinalMotion = false;
+        let isFlight = false;
+
         let finalBlend = 0;
         const clock = new THREE.Clock();
 
@@ -896,11 +908,11 @@
             );
           }
 
-          // 2) viscous atom following
+          // 2) viscous atom following (guarded so Bezier can drive position directly)
           for (let i = 0; i < atoms.length; i++) {
             const a = atoms[i];
-            const goal = a.userData.goal || a.position;
-            dampVec3(a.position, goal, dt, LAG.atom);
+            const goal = a.userData.goal; // may be null during Bezier flight
+            if (goal) dampVec3(a.position, goal, dt, LAG.atom);
           }
 
           // 3) viscous bond growth
@@ -1057,6 +1069,8 @@
 
                     isScrollComplete = true;
                     isFinalized = true;
+                    isFlight = false;
+                    enableFinalMotion = !self.isActive;
                   }
                   // enable full free motion only once unpinned
                   enableFinalMotion = isFinalized && !self.isActive;
@@ -1097,6 +1111,10 @@
 
             tl.set("#copy1", { opacity: 0, y: 12 });
             tl.set("#copy2", { opacity: 0, y: 12 });
+            atoms.forEach((a) => {
+              a.userData.goal = null;
+            });
+            isFlight = true;
 
             tl.to(
               "#copy1",
@@ -1114,6 +1132,9 @@
               0.82
             );
 
+            atoms.forEach((a) => {
+              a.userData.goal = null;
+            });
             const yawTurn = Math.PI * 2;
             tl.to(
               masterSurface.userData.rotGoal,
@@ -1134,11 +1155,12 @@
             const beat = 1 / 5;
             const moveDur = beat * 0.98;
 
-            // Movement animations
+            // Movement animations — switch to Bezier (start → via → target)
             for (let i = 0; i < 5; i++) {
-              moveAlongSphericalArc(
+              moveAlongSmoothQuadratic(
                 i,
                 startPositions[i],
+                vias[i],
                 targets[i],
                 tl,
                 moveDur,
@@ -1176,6 +1198,7 @@
 
                       // Enable continuous motion
                       isScrollComplete = true;
+                      isFlight = false;
                     }
                   },
                 },
