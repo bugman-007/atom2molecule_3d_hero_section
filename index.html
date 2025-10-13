@@ -469,6 +469,8 @@ scene.environment = envRT.texture;
         center = new THREE.Mesh(atomGeo, atomMat);
         center.position.set(0, 0, 0);
         center.scale.setScalar(1);
+        center.userData.baseScale = center.scale.x;
+center.userData.squash = 0;
         centerGroup.add(center);
         center.renderOrder = 0;
 
@@ -490,7 +492,9 @@ scene.environment = envRT.texture;
           const m = new THREE.Mesh(atomGeo, atomMat);
           m.position.copy(startRing[i]);
           m.scale.setScalar(1.2 + Math.random() * 0.45);
-          ringGroup.add(m);
+m.userData.baseScale = m.scale.x;     // stable reference for squash & breathing
+m.userData.squash = 0;                // start neutral
+ringGroup.add(m);
           m.renderOrder = 2;
           return m;
         });
@@ -748,8 +752,12 @@ scene.environment = envRT.texture;
                 const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
                 const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
                 const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
-                atoms[atomIdx].position.set(x, y, z);
-                atoms[atomIdx].userData.goal = null; // stays off during Bezier flight
+                const a = atoms[atomIdx];
+const prev = (a.userData._prevPos ||= new THREE.Vector3());
+
+a.position.set(x, y, z);              // EXACT path — do not change orbit
+(a.userData.vel ||= new THREE.Vector3()).copy(a.position).sub(prev);  // per-tick delta
+prev.copy(a.position);
               },
             },
             at
@@ -830,8 +838,8 @@ scene.environment = envRT.texture;
           pair.capA.scale.setScalar(s);
           pair.capB.scale.setScalar(s);
 
-          const rC = CONFIG.BASE_RADIUS * center.scale.x;
-          const rO = CONFIG.BASE_RADIUS * atoms[pair.outerIdx].scale.x;
+          const rC = CONFIG.BASE_RADIUS * (center.userData.baseScale ?? center.scale.x);
+const rO = CONFIG.BASE_RADIUS * (atoms[pair.outerIdx].userData.baseScale ?? atoms[pair.outerIdx].scale.x);
           const coreLen = Math.max(0, centerDist - (rC + rO));
           const len = coreLen * g;
           const visible = show && len > 1e-6;
@@ -924,6 +932,31 @@ scene.environment = envRT.texture;
               LAG.bond
             );
           }
+          // 2.5) goomy look: squash-only during flight (does not alter positions)
+if (isFlight) {
+  for (let i = 0; i < atoms.length; i++) {
+    const a = atoms[i];
+
+    // per-frame speed from Bezier updates
+    const speed = a.userData.vel ? a.userData.vel.length() : 0;
+
+    // tasteful target squash (cap small; tune multiplier to taste)
+    const targetK = Math.min(0.085, speed * 1.25);
+
+    // smooth the squash so it feels viscous
+    a.userData.squash = dampNumber(a.userData.squash || 0, targetK, dt, 7.0);
+
+    // apply anisotropic scale around a stable base (never from current scale)
+    const base = (a.userData.baseScale ?? 1.0);
+    const k = a.userData.squash || 0;
+    a.scale.set(
+      base * (1 + 0.45 * k),
+      base * (1 - 0.90 * k),
+      base * (1 + 0.45 * k)
+    );
+  }
+}
+
 
           // Apply continuous motion only after scroll animation completes
           if (enableFinalMotion || finalBlend > 0) {
@@ -938,11 +971,11 @@ scene.environment = envRT.texture;
             atoms.forEach((atom, i) => {
               const offset = i * 0.8;
               const vibration = Math.sin(time * 1.2 + offset) * 0.002 * spinMix;
-              const baseScale = atom.userData.baseScale || atom.scale.x;
+              const baseScale = atom.userData.baseScale;
               atom.scale.setScalar(baseScale + vibration);
             });
             const centerBreathing = Math.sin(time * 0.9) * 0.003 * spinMix;
-            const centerBaseScale = center.userData.baseScale || center.scale.x;
+            const centerBaseScale = center.userData.baseScale;
             center.scale.setScalar(centerBaseScale + centerBreathing);
           }
 
