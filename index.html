@@ -143,22 +143,20 @@
         CAP_SHRINK_IN: 0.08,
         CAP_SHRINK_OUT: 0.18,
         CAP_SCALE: 1.06,
-        BASE_RADIUS: 0.5,
-        BOND_RADIUS: 0.14,
-        RING_RADIUS: 2.9,
-        TARGET_RADIUS: 1.8,
+        BASE_RADIUS: 0.4, // Reduced from 0.5 for smaller appearance
+        BOND_RADIUS: 0.11, // Reduced from 0.14 for smaller appearance
+        RING_RADIUS: 2.2, // Reduced from 2.9 for smaller molecule
+        TARGET_RADIUS: 1.35, // Reduced from 1.8 for smaller molecule
         BULGE_RATIO: 0.35,
-        LUT_SAMPLES: 240, // Reduced from 320 for performance
+        LUT_SAMPLES: 240,
         BASE_COLOR: 0x1a509b,
-        // BASE_COLOR: 0x0065b2,
-        // BASE_COLOR: 0x1c1a70,
       };
 
       // === Liquid lag (first-order low-pass) =====================
       const LAG = {
-        atom: 6.0, // s^-1   higher = snappier, lower = gooier
-        bond: 7.5, // s^-1   bonds can be a bit snappier
-        rotation: 1.8, // s^-1   overall group rotation lag
+        atom: 6.0,
+        bond: 7.5,
+        rotation: 1.8,
       };
 
       function dampNumber(cur, target, dt, lambda) {
@@ -206,27 +204,27 @@
       const posterEl = document.querySelector(".poster");
 
       {
-        const host = heroEl; // mount in #hero
+        const host = heroEl;
         host.style.position = "relative";
-        host.style.background = "transparent"; // let canvas show
+        host.style.background = "transparent";
 
         const bg = document.createElement("canvas");
         const g = bg.getContext("2d", { alpha: false });
         bg.style.position = "absolute";
         bg.style.inset = "0";
         bg.style.pointerEvents = "none";
-        bg.style.zIndex = "-1"; // behind WebGL
+        bg.style.zIndex = "-1";
         host.prepend(bg);
 
-        const GOLD = "#ffcf86"; // warm bokeh color
+        const GOLD = "#ffcf86";
         const GOLD_2 = "#ffc261";
-        const BASE = "#050505"; // very dark base
+        const BASE = "#050505";
 
         let W = 0,
           H = 0,
           DPR = 1,
           running = true;
-        const M = 26; // number of discs
+        const M = 26;
         const discs = [];
 
         function resizeBG() {
@@ -246,7 +244,7 @@
             const r = (Math.random() * 80 + 50) * (H / 800);
             const x = Math.random() * W;
             const y = Math.random() * H;
-            const s = (0.15 + Math.random() * 0.35) * 0.12; // speed
+            const s = (0.15 + Math.random() * 0.35) * 0.12;
             const a = Math.random() * Math.PI * 2;
             discs.push({ x, y, r, s, a, phi: Math.random() * 6.28 });
           }
@@ -265,27 +263,23 @@
           g.fillStyle = BASE;
           g.fillRect(0, 0, W, H);
 
-          // gentle angle drift for parallax
           for (const d of discs) {
             d.a += d.s * 0.5;
             d.phi += 0.002;
             d.x += Math.cos(d.a) * d.s * 30.0;
             d.y += Math.sin(d.a) * d.s * 18.0;
 
-            // wrap
             if (d.x < -d.r) d.x = W + d.r;
             if (d.x > W + d.r) d.x = -d.r;
             if (d.y < -d.r) d.y = H + d.r;
             if (d.y > H + d.r) d.y = -d.r;
 
-            // draw
             g.globalCompositeOperation = "lighter";
             g.fillStyle = grad(d.x, d.y, d.r);
             g.beginPath();
             g.arc(d.x, d.y, d.r, 0, Math.PI * 2);
             g.fill();
 
-            // soft hot-core accent
             g.globalCompositeOperation = "screen";
             g.fillStyle = GOLD_2;
             g.globalAlpha = 0.06;
@@ -301,7 +295,6 @@
             g.globalAlpha = 1;
           }
 
-          // return to normal for next frame
           g.globalCompositeOperation = "source-over";
           requestAnimationFrame(frame);
         }
@@ -325,14 +318,11 @@
       let atoms = [];
       let center;
 
-      // Geometry cache
-      let atomGeo, halfGeo, capGeo;
+      let atomGeo, halfGeo;
 
-      // Material cache
       let atomMat, bondMat;
 
       try {
-        // Renderer setup
         renderer = new THREE.WebGLRenderer({
           antialias: true,
           alpha: false,
@@ -351,39 +341,35 @@
         renderer.setClearColor(0x000000, 0);
         heroEl.prepend(renderer.domElement);
 
-        // Camera positioning function
         function updateCameraForViewport() {
           const w = window.innerWidth;
-          let z = 8.0;
-          if (w <= 1280) z = 8.4;
-          if (w <= 900) z = 8.8;
-          if (w <= 600) z = 9.2;
-          if (w <= 420) z = 9.6;
+          let z = 10.0; // Increased from 8.0 to make molecule appear smaller
+          if (w <= 1280) z = 10.5;
+          if (w <= 900) z = 11.0;
+          if (w <= 600) z = 11.5;
+          if (w <= 420) z = 12.0;
           camera.position.z = z;
           camera.updateProjectionMatrix();
         }
 
-        // Scene setup
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(
-          35,
+          30, // Reduced FOV from 35 to make molecule appear smaller
           heroEl.clientWidth / heroEl.clientHeight,
           0.1,
           100
         );
-        camera.position.set(0, 0, 8);
+        camera.position.set(0, 0, 10); // Increased from 8
 
-        // Lighting setup
-        const key = new THREE.DirectionalLight(0xfff4e6, 2.75); // Warmer key light
+        const key = new THREE.DirectionalLight(0xfff4e6, 2.75);
         key.position.set(20.2, 30.0, 40.0);
 
-        const rim = new THREE.DirectionalLight(0xf49a59, 3.38); // Client's requested #f49a59
+        const rim = new THREE.DirectionalLight(0xf49a59, 3.38);
         rim.position.set(-3.0, 1.2, -2.2);
 
-        const amb = new THREE.AmbientLight(0xfff4e6, 0.12); // Warmer ambient
+        const amb = new THREE.AmbientLight(0xfff4e6, 0.12);
         scene.add(key, rim, amb);
 
-        // Environment setup
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
 
@@ -394,12 +380,10 @@
         );
         envScene.add(room);
 
-        // Update environment panels for warmer lighting
         const panelConfigs = [
-          // x,   y,   z,   rx,  ry,              w,   h,     hexColor,  intensity
-          [-2.2, 2.1, -3.0, 0.0, 0.0, 3.2, 2.2, 0xffd6b8, 2.9], // Warmer keybox
-          [3.0, -1.0, 2.2, 0.0, Math.PI / 2, 2.2, 1.7, 0xfff0e0, 2.2], // Warm fill
-          [-3.2, -2.0, 1.0, 0.0, -Math.PI / 2, 1.6, 2.3, 0xf49a59, 1.7], // Client's orange
+          [-2.2, 2.1, -3.0, 0.0, 0.0, 3.2, 2.2, 0xffd6b8, 2.9],
+          [3.0, -1.0, 2.2, 0.0, Math.PI / 2, 2.2, 1.7, 0xfff0e0, 2.2],
+          [-3.2, -2.0, 1.0, 0.0, -Math.PI / 2, 1.6, 2.3, 0xf49a59, 1.7],
         ];
 
         panelConfigs.forEach(([x, y, z, rx, ry, w, h, hex, inten]) => {
@@ -413,9 +397,8 @@
           envScene.add(m);
         });
         const envRT = pmrem.fromScene(envScene, 0.04);
-scene.environment = envRT.texture;
+        scene.environment = envRT.texture;
 
-        // Material setup
         atomMat = new THREE.MeshPhysicalMaterial({
           color: CONFIG.BASE_COLOR,
           roughness: 0.95,
@@ -437,7 +420,6 @@ scene.environment = envRT.texture;
         bondMat.thickness = 0.42;
         bondMat.envMapIntensity = 1.25;
 
-        // Geometry setup - create once and reuse
         atomGeo = new THREE.SphereGeometry(CONFIG.BASE_RADIUS, 48, 48);
         halfGeo = new THREE.CylinderGeometry(
           CONFIG.BOND_RADIUS,
@@ -446,9 +428,7 @@ scene.environment = envRT.texture;
           24
         );
         halfGeo.translate(0, 0.5, 0);
-        capGeo = new THREE.SphereGeometry(CONFIG.BOND_RADIUS * 1.15, 24, 18);
 
-        // Molecule structure
         molecule = new THREE.Group();
         scene.add(molecule);
 
@@ -465,16 +445,14 @@ scene.environment = envRT.texture;
           z: masterSurface.rotation.z,
         };
 
-        // Central atom
         center = new THREE.Mesh(atomGeo, atomMat);
         center.position.set(0, 0, 0);
         center.scale.setScalar(1);
         center.userData.baseScale = center.scale.x;
-center.userData.squash = 0;
+        center.userData.squash = 0;
         centerGroup.add(center);
         center.renderOrder = 0;
 
-        // Outer atoms positions
         const baseAngle = Math.PI / 2;
         const step = (2 * Math.PI) / 5;
 
@@ -487,14 +465,13 @@ center.userData.squash = 0;
           );
         });
 
-        // Create atoms
         atoms = Array.from({ length: 5 }, (_, i) => {
           const m = new THREE.Mesh(atomGeo, atomMat);
           m.position.copy(startRing[i]);
           m.scale.setScalar(1.2 + Math.random() * 0.45);
-m.userData.baseScale = m.scale.x;     // stable reference for squash & breathing
-m.userData.squash = 0;                // start neutral
-ringGroup.add(m);
+          m.userData.baseScale = m.scale.x;
+          m.userData.squash = 0;
+          ringGroup.add(m);
           m.renderOrder = 2;
           return m;
         });
@@ -505,7 +482,6 @@ ringGroup.add(m);
           m.userData.goal = m.position.clone();
         });
 
-        // Target positions
         const R = CONFIG.TARGET_RADIUS;
         const targets = [
           new THREE.Vector3(0.0, 0.0, R),
@@ -524,7 +500,6 @@ ringGroup.add(m);
         ];
 
         function buildSphericalArcSampler(p0, p1) {
-          // start/end directions + radii
           const s = p0.clone();
           const r0 = s.length();
           s.normalize();
@@ -532,20 +507,16 @@ ringGroup.add(m);
           const r1 = e.length();
           e.normalize();
 
-          // rotation axis & angle between s and e
           let axis = new THREE.Vector3().crossVectors(s, e);
           const sinΩ = axis.length();
           const cosΩ = THREE.MathUtils.clamp(s.dot(e), -1, 1);
           let Ω = Math.atan2(sinΩ, cosΩ);
 
           if (sinΩ < 1e-6) {
-            // parallel or antiparallel
             if (cosΩ > 0.999999) {
-              // identical direction: only radial change
               return (u) =>
                 s.clone().multiplyScalar(THREE.MathUtils.lerp(r0, r1, u));
             } else {
-              // 180° apart — pick any ortho axis
               axis = (
                 Math.abs(s.x) < 0.9
                   ? new THREE.Vector3(1, 0, 0)
@@ -559,7 +530,6 @@ ringGroup.add(m);
             axis.normalize();
           }
 
-          // sample along arc; linear radial blend (can swap to smooth if desired)
           return (u) => {
             const dir = s
               .clone()
@@ -570,7 +540,6 @@ ringGroup.add(m);
           };
         }
 
-        // optional: arc-length LUT for steadier velocity
         function buildArcLUT(sampleFn, samples = CONFIG.LUT_SAMPLES) {
           const len = new Float32Array(samples + 1);
           let prev = sampleFn(0),
@@ -606,9 +575,8 @@ ringGroup.add(m);
             {
               progress: 1,
               duration: dur,
-              ease: "none", // Linear movement for consistent speed
+              ease: "none",
               onUpdate: () => {
-                // Simple spherical linear interpolation for constant angular velocity
                 const center = new THREE.Vector3(0, 0, 0);
                 const v0 = p0.clone().sub(center);
                 const v1 = p1.clone().sub(center);
@@ -638,7 +606,6 @@ ringGroup.add(m);
 
                   atoms[atomIdx].userData.goal.copy(interpolated.add(center));
                 } else {
-                  // Fallback to linear interpolation if angles are too small
                   atoms[atomIdx].userData.goal.lerpVectors(p0, p1, t);
                 }
               },
@@ -647,7 +614,6 @@ ringGroup.add(m);
           );
         }
 
-        // Optimized elliptical via calculation
         function createEllipticalVia(
           startPos,
           targetPos,
@@ -684,20 +650,19 @@ ringGroup.add(m);
           createEllipticalVia(startPositions[i], targets[i], centerWorldPos)
         );
 
-        // Optimized Bezier LUT with reduced samples
         function buildSmoothBezierLUT(
           p0,
           p1,
           p2,
           samples = CONFIG.LUT_SAMPLES
         ) {
-          samples = Math.max(8, samples | 0); // guard: at least 8 samples
+          samples = Math.max(8, samples | 0);
           const pts = new Array(samples + 1);
           const len = new Float32Array(samples + 1);
           let acc = 0;
 
           for (let i = 0; i <= samples; i++) {
-            const t = i / samples; // LINEAR t only (no easing)
+            const t = i / samples;
             const it = 1 - t;
             const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
             const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
@@ -712,16 +677,13 @@ ringGroup.add(m);
         }
 
         function tFromS(lut, s) {
-          // clamp s to [0,1]
           s = s <= 0 ? 0 : s >= 1 ? 1 : s;
           const target = s * lut.total;
 
-          // trivial edges
           if (target <= 0) return 0;
           const lastIdx = lut.len.length - 1;
           if (target >= lut.len[lastIdx]) return 1;
 
-          // binary search
           let lo = 0,
             hi = lastIdx;
           while (lo < hi) {
@@ -753,18 +715,17 @@ ringGroup.add(m);
                 const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
                 const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
                 const a = atoms[atomIdx];
-const prev = (a.userData._prevPos ||= new THREE.Vector3());
+                const prev = (a.userData._prevPos ||= new THREE.Vector3());
 
-a.position.set(x, y, z);              // EXACT path — do not change orbit
-(a.userData.vel ||= new THREE.Vector3()).copy(a.position).sub(prev);  // per-tick delta
-prev.copy(a.position);
+                a.position.set(x, y, z);
+                (a.userData.vel ||= new THREE.Vector3()).copy(a.position).sub(prev);
+                prev.copy(a.position);
               },
             },
             at
           );
         }
 
-        // Bond creation
         function createCenterBond(outerIdx) {
           const aHalf = new THREE.Mesh(halfGeo, bondMat);
           const bHalf = new THREE.Mesh(halfGeo, bondMat);
@@ -773,18 +734,9 @@ prev.copy(a.position);
           aHalf.renderOrder = 1;
           bHalf.renderOrder = 1;
 
-          const capC = new THREE.Mesh(capGeo, bondMat);
-          const capO = new THREE.Mesh(capGeo, bondMat);
-          capC.visible = capO.visible = false;
-          molecule.add(capC, capO);
-          capC.renderOrder = 1;
-          capO.renderOrder = 1;
-
           const pair = {
             a: aHalf,
             b: bHalf,
-            capA: capC,
-            capB: capO,
             growth: 0,
             growthGoal: 0,
             outerIdx,
@@ -794,12 +746,10 @@ prev.copy(a.position);
           return pair;
         }
 
-        // Create bonds
         for (let i = 0; i < 5; i++) {
           createCenterBond(i);
         }
 
-        // Optimized bond positioning
         function positionCenterBond(pair) {
           const {
             tmpCw,
@@ -826,27 +776,14 @@ prev.copy(a.position);
           const g = pair.growth;
           const show = g > CONFIG.CAP_VIS_EPS;
 
-          const t = Math.min(
-            Math.max(
-              (g - CONFIG.CAP_SHRINK_IN) /
-                (CONFIG.CAP_SHRINK_OUT - CONFIG.CAP_SHRINK_IN),
-              0
-            ),
-            1
-          );
-          const s = CONFIG.CAP_SCALE * t;
-          pair.capA.scale.setScalar(s);
-          pair.capB.scale.setScalar(s);
-
           const rC = CONFIG.BASE_RADIUS * (center.userData.baseScale ?? center.scale.x);
-const rO = CONFIG.BASE_RADIUS * (atoms[pair.outerIdx].userData.baseScale ?? atoms[pair.outerIdx].scale.x);
+          const rO = CONFIG.BASE_RADIUS * (atoms[pair.outerIdx].userData.baseScale ?? atoms[pair.outerIdx].scale.x);
           const coreLen = Math.max(0, centerDist - (rC + rO));
           const len = coreLen * g;
           const visible = show && len > 1e-6;
 
           dirN.copy(dir).normalize();
 
-          // One-sided growth optimization
           pair.a.visible = false;
           pair.b.visible = visible;
 
@@ -858,28 +795,8 @@ const rO = CONFIG.BASE_RADIUS * (atoms[pair.outerIdx].userData.baseScale ?? atom
             pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
             pair.b.scale.set(1, len, 1);
           }
-
-          const showCapOuter = g > 0.001;
-          const showCapCenter = g > 0.95;
-
-          pair.capB.visible = showCapOuter;
-          if (showCapOuter) {
-            pair.capB.position
-              .copy(tmpOl)
-              .add(tmpV2.copy(dirN).multiplyScalar(-rO));
-            pair.capB.scale.setScalar(s);
-          }
-
-          pair.capA.visible = showCapCenter;
-          if (showCapCenter) {
-            pair.capA.position
-              .copy(tmpCl)
-              .add(tmpV1.copy(dirN).multiplyScalar(rC));
-            pair.capA.scale.setScalar(s);
-          }
         }
 
-        // Enhanced render loop with continuous motion
         let time = 0;
         let isScrollComplete = false;
         let isFinalized = false;
@@ -891,9 +808,8 @@ const rO = CONFIG.BASE_RADIUS * (atoms[pair.outerIdx].userData.baseScale ?? atom
 
         function render() {
           const dt = clock.getDelta();
-          time += 0.008; // Control speed of continuous motion
+          time += 0.008;
 
-          // 1) viscous group rotation
           if (masterSurface.userData.rotGoal) {
             const g = masterSurface.userData.rotGoal;
             masterSurface.rotation.x = dampNumber(
@@ -916,14 +832,12 @@ const rO = CONFIG.BASE_RADIUS * (atoms[pair.outerIdx].userData.baseScale ?? atom
             );
           }
 
-          // 2) viscous atom following (guarded so Bezier can drive position directly)
           for (let i = 0; i < atoms.length; i++) {
             const a = atoms[i];
-            const goal = a.userData.goal; // may be null during Bezier flight
+            const goal = a.userData.goal;
             if (goal) dampVec3(a.position, goal, dt, LAG.atom);
           }
 
-          // 3) viscous bond growth
           for (const pair of bonds) {
             pair.growth = dampNumber(
               pair.growth,
@@ -932,42 +846,29 @@ const rO = CONFIG.BASE_RADIUS * (atoms[pair.outerIdx].userData.baseScale ?? atom
               LAG.bond
             );
           }
-          // 2.5) goomy look: squash-only during flight (does not alter positions)
-if (isFlight) {
-  for (let i = 0; i < atoms.length; i++) {
-    const a = atoms[i];
 
-    // per-frame speed from Bezier updates
-    const speed = a.userData.vel ? a.userData.vel.length() : 0;
+          if (isFlight) {
+            for (let i = 0; i < atoms.length; i++) {
+              const a = atoms[i];
+              const speed = a.userData.vel ? a.userData.vel.length() : 0;
+              const targetK = Math.min(0.085, speed * 1.25);
+              a.userData.squash = dampNumber(a.userData.squash || 0, targetK, dt, 7.0);
+              const base = (a.userData.baseScale ?? 1.0);
+              const k = a.userData.squash || 0;
+              a.scale.set(
+                base * (1 + 0.45 * k),
+                base * (1 - 0.90 * k),
+                base * (1 + 0.45 * k)
+              );
+            }
+          }
 
-    // tasteful target squash (cap small; tune multiplier to taste)
-    const targetK = Math.min(0.085, speed * 1.25);
-
-    // smooth the squash so it feels viscous
-    a.userData.squash = dampNumber(a.userData.squash || 0, targetK, dt, 7.0);
-
-    // apply anisotropic scale around a stable base (never from current scale)
-    const base = (a.userData.baseScale ?? 1.0);
-    const k = a.userData.squash || 0;
-    a.scale.set(
-      base * (1 + 0.45 * k),
-      base * (1 - 0.90 * k),
-      base * (1 + 0.45 * k)
-    );
-  }
-}
-
-
-          // Apply continuous motion only after scroll animation completes
           if (enableFinalMotion || finalBlend > 0) {
             const spinMix = enableFinalMotion ? 1 : finalBlend;
-
-            // additive, so it won't fight GSAP's masterSurface rotation
             molecule.rotation.y += 0.0025 * spinMix;
             molecule.rotation.x += Math.sin(time * 0.8) * 0.0012 * spinMix;
             molecule.rotation.z += Math.cos(time * 0.6) * 0.0008 * spinMix;
 
-            // breathing (kept as-is)
             atoms.forEach((atom, i) => {
               const offset = i * 0.8;
               const vibration = Math.sin(time * 1.2 + offset) * 0.002 * spinMix;
@@ -986,7 +887,6 @@ if (isFlight) {
         }
         rafId = requestAnimationFrame(render);
 
-        // Resize handling
         let resizeRAF;
         const onResize = () => {
           const rect = heroEl.getBoundingClientRect();
@@ -1022,7 +922,6 @@ if (isFlight) {
         );
         onResize();
 
-        // GSAP Timeline
         if (window.gsap && window.ScrollTrigger) {
           const PREFERS_REDUCED = window.matchMedia(
             "(prefers-reduced-motion: reduce)"
@@ -1033,19 +932,15 @@ if (isFlight) {
           function finalizeStatic() {
             atoms.forEach((m, i) => {
               m.position.copy(targets[i]);
-              // Store base scale for breathing animation
               m.userData.baseScale = m.scale.x;
             });
             bonds.forEach((pair) => {
               pair.growth = 1;
               if (pair.a) pair.a.visible = false;
               if (pair.b) pair.b.visible = true;
-              if (pair.capA) pair.capA.visible = true;
-              if (pair.capB) pair.capB.visible = true;
               positionCenterBond(pair);
             });
 
-            // Store final rotation and enable continuous motion
             masterSurface.userData.finalRotation = {
               x: masterSurface.rotation.x,
               y: masterSurface.rotation.y,
@@ -1080,7 +975,6 @@ if (isFlight) {
                 invalidateOnRefresh: true,
 
                 onUpdate: (self) => {
-                  // NEW — ramp up pre-spin from 97%→100% while still pinned
                   if (self.direction > 0) {
                     finalBlend = gsap.utils.clamp(
                       0,
@@ -1088,7 +982,7 @@ if (isFlight) {
                       (self.progress - 0.97) / 0.03
                     );
                   } else {
-                    finalBlend = 0; // kill pre-spin on upward scrub so rollback feels clean
+                    finalBlend = 0;
                   }
 
                   if (!isFinalized && self.progress >= 0.999) {
@@ -1105,13 +999,12 @@ if (isFlight) {
                     isFlight = false;
                     enableFinalMotion = !self.isActive;
                   }
-                  // enable full free motion only once unpinned
                   enableFinalMotion = isFinalized && !self.isActive;
                 },
 
                 onEnter: () => {
                   if (!rafId) rafId = requestAnimationFrame(render);
-                  finalBlend = 0; // reset pre-spin when re-entering
+                  finalBlend = 0;
                   enableFinalMotion = false;
                 },
                 onEnterBack: () => {
@@ -1126,7 +1019,6 @@ if (isFlight) {
                       rafId = 0;
                     }
                   } else {
-                    // immediately switch from pre-spin to full free motion after release
                     enableFinalMotion = true;
                     finalBlend = 0;
                   }
@@ -1152,7 +1044,7 @@ if (isFlight) {
             tl.to(
               "#copy1",
               { opacity: 1, y: 0, duration: 0.16, ease: "power2.out" },
-              0.42 // Start after 2nd bond begins forming (was 0.22)
+              0.42
             );
             tl.to(
               "#copy1",
@@ -1188,7 +1080,6 @@ if (isFlight) {
             const beat = 1 / 5;
             const moveDur = beat * 0.98;
 
-            // Movement animations — switch to Bezier (start → via → target)
             for (let i = 0; i < 5; i++) {
               moveAlongSmoothQuadratic(
                 i,
@@ -1201,7 +1092,6 @@ if (isFlight) {
               );
             }
 
-            // Bond growth animations
             bonds.forEach((bond, i) => {
               tl.to(
                 bond,
@@ -1214,22 +1104,16 @@ if (isFlight) {
                     bond.a.visible = false;
                   },
                   onComplete: () => {
-                    // Enable continuous motion when the last bond completes
                     if (i === bonds.length - 1) {
-                      // Store final rotation state
                       masterSurface.userData.finalRotation = {
                         x: masterSurface.rotation.x,
                         y: masterSurface.rotation.y,
                         z: masterSurface.rotation.z,
                       };
-
-                      // Store base scales for breathing animation
                       atoms.forEach((atom) => {
                         atom.userData.baseScale = atom.scale.x;
                       });
                       center.userData.baseScale = center.scale.x;
-
-                      // Enable continuous motion
                       isScrollComplete = true;
                       isFlight = false;
                     }
@@ -1241,7 +1125,6 @@ if (isFlight) {
           }
         }
 
-        // Hide poster and update status
         setTimeout(() => posterEl && posterEl.classList.add("hidden"), 150);
         statusEl.textContent = "Bonds visible + section pinned";
         setTimeout(() => statusEl.remove(), 700);
@@ -1252,12 +1135,8 @@ if (isFlight) {
       }
     </script>
     <script>
-      /*
-        Full-background linear-gradient animation mounted inside #hero.
-        Palette: #1c1a70 (deep indigo) ↔ #aecbff (soft blue)
-      */
       (function () {
-        const TARGET = document.getElementById("hero"); // <-- mount here
+        const TARGET = document.getElementById("hero");
         if (!TARGET) return;
 
         const cvs = document.createElement("canvas");
@@ -1266,8 +1145,8 @@ if (isFlight) {
         cvs.style.inset = "0";
         cvs.style.zIndex = "-1";
         cvs.style.pointerEvents = "none";
-        TARGET.style.position = "relative"; // ensure positioning context
-        TARGET.style.background = "transparent"; // let gradient show
+        TARGET.style.position = "relative";
+        TARGET.style.background = "transparent";
         TARGET.prepend(cvs);
 
         const COLOR_A = "#031a30";
