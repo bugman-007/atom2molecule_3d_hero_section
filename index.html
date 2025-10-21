@@ -213,7 +213,7 @@
         bg.style.position = "absolute";
         bg.style.inset = "0";
         bg.style.pointerEvents = "none";
-        bg.style.zIndex = "-1"; // behind WebGL
+        bg.style.zIndex = "-2"; // behind gradient canvas & WebGL
         host.prepend(bg);
 
         const GOLD = "#ffcf86"; // warm bokeh color
@@ -258,6 +258,7 @@
           return t;
         }
 
+        let bokehReady = false;
         function frame(t) {
           if (!running) return;
           g.fillStyle = BASE;
@@ -301,6 +302,11 @@
 
           // return to normal for next frame
           g.globalCompositeOperation = "source-over";
+          if (!bokehReady) {
+            // now safe to remove CSS background
+            host.style.background = "transparent";
+            bokehReady = true;
+          }
           requestAnimationFrame(frame);
         }
 
@@ -351,7 +357,8 @@
 
         // Camera positioning function - adjusted for smaller molecule
         function updateCameraForViewport() {
-          const w = window.innerWidth;
+          // Use container width for consistent framing
+          const w = heroEl.clientWidth;
           let z = 5.0; // Reduced from 8.0 for smaller molecule
           if (w <= 1280) z = 5.4;
           if (w <= 900) z = 5.8;
@@ -632,7 +639,6 @@
                     )
                     .normalize()
                     .multiplyScalar(radius);
-
                   atoms[atomIdx].userData.goal.copy(interpolated.add(center));
                 } else {
                   // Fallback to linear interpolation if angles are too small
@@ -819,6 +825,7 @@
           // Straight bonds: extend into atoms to avoid gaps
           const overlap = CONFIG.BASE_RADIUS * 0.6; // Bond extends into atoms
           const coreLen = Math.max(0, centerDist - overlap * 2);
+          if (centerDist <= overlap * 2) { pair.b.visible = false; return; }
           const len = coreLen * g;
           const visible = show && len > 1e-6;
 
@@ -1129,21 +1136,34 @@
             atoms.forEach((a) => {
               a.userData.goal = null;
             });
-            const yawTurn = Math.PI * 2;
+            
+            // === Mark's request: Continuous rotation with bonds forming during transition ===
+            const yawTurn = Math.PI * 2; // One full rotation
+            
+            // First rotation: 0.0 to 0.45 (no bonds visible)
             tl.to(
               masterSurface.userData.rotGoal,
-              { y: "+=" + yawTurn, duration: 1 },
+              { y: `+=${yawTurn * 0.45}`, duration: 0.45, ease: "none" },
+              0
+            );
+            
+            // Second rotation: 0.45 to 0.9 (with bonds forming during this phase)
+            tl.to(
+              masterSurface.userData.rotGoal,
+              { y: `+=${yawTurn * 0.45}`, duration: 0.45, ease: "none" },
+              0.45
+            );
+            
+            // Gentle sway motion across the entire timeline for visual interest
+            tl.to(
+              masterSurface.userData.rotGoal,
+              { x: "+=0.28", z: "-=0.22", duration: 0.45, ease: "sine.inOut" },
               0
             );
             tl.to(
               masterSurface.userData.rotGoal,
-              { x: "+=0.28", z: "-=0.22", duration: 0.5, ease: "sine.inOut" },
-              0
-            );
-            tl.to(
-              masterSurface.userData.rotGoal,
-              { x: "-=0.28", z: "+=0.22", duration: 0.5, ease: "sine.inOut" },
-              0.5
+              { x: "-=0.28", z: "+=0.22", duration: 0.45, ease: "sine.inOut" },
+              0.45
             );
 
             const beat = 1 / 5;
@@ -1162,41 +1182,33 @@
               );
             }
 
-            // Bond growth animations
+            // Bonds link DURING the second rotation phase (0.45 to 0.9 timeline)
             bonds.forEach((bond, i) => {
               tl.to(
                 bond,
                 {
                   growthGoal: 1,
-                  duration: beat * 0.9,
+                  duration: 0.1, // Quick bond formation
                   ease: "power2.out",
                   onStart: () => {
                     bond.b.visible = true;
                     bond.a.visible = false;
                   },
                   onComplete: () => {
-                    // Enable continuous motion when the last bond completes
                     if (i === bonds.length - 1) {
-                      // Store final rotation state
                       masterSurface.userData.finalRotation = {
                         x: masterSurface.rotation.x,
                         y: masterSurface.rotation.y,
                         z: masterSurface.rotation.z,
                       };
-
-                      // Store base scales for breathing animation
-                      atoms.forEach((atom) => {
-                        atom.userData.baseScale = atom.scale.x;
-                      });
+                      atoms.forEach((atom) => atom.userData.baseScale = atom.scale.x);
                       center.userData.baseScale = center.scale.x;
-
-                      // Enable continuous motion
                       isScrollComplete = true;
                       isFlight = false;
                     }
                   },
                 },
-                i * beat + beat * 0.7
+                0.45 + (i * 0.02) // Stagger bond formation slightly
               );
             });
           }
@@ -1217,7 +1229,7 @@
         Full-background linear-gradient animation mounted inside #hero.
         Palette: #1c1a70 (deep indigo) ↔ #aecbff (soft blue)
       */
-      (function () {
+      (function () { // === Animated gradient BG (pause on hidden; keep fallback until first draw) ===
         const TARGET = document.getElementById("hero"); // <-- mount here
         if (!TARGET) return;
 
@@ -1228,7 +1240,6 @@
         cvs.style.zIndex = "-1";
         cvs.style.pointerEvents = "none";
         TARGET.style.position = "relative"; // ensure positioning context
-        TARGET.style.background = "transparent"; // let gradient show
         TARGET.prepend(cvs);
 
         const COLOR_A = "#031a30";
@@ -1258,6 +1269,7 @@
           return `rgb(${r},${g},${bl})`;
         }
 
+        let gradReady = false, running = true;
         function draw(t) {
           const time = t * 0.003;
           const angle = time * 0.05;
@@ -1280,13 +1292,21 @@
 
           ctx.fillStyle = grad;
           ctx.fillRect(0, 0, w, h);
+          if (!gradReady) {
+            TARGET.style.background = "transparent"; // remove CSS bg only after first paint
+            gradReady = true;
+          }
         }
 
         function loop(t) {
+          if (!running) return requestAnimationFrame(loop);
           draw(t);
           requestAnimationFrame(loop);
         }
         requestAnimationFrame(loop);
+        document.addEventListener("visibilitychange", () => {
+          running = !document.hidden;
+        });
       })();
     </script>
   </body>
