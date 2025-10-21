@@ -2,1291 +2,359 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <title>Chematek Hero — Bonds + Pin</title>
+    <title>Chematek Hero — Spin-Only (Client Baseline)</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <style>
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
+      *,*::before,*::after{box-sizing:border-box}
+      html,body{height:100%;margin:0}
+      body{background:#0a2746;color:#e8eef6;font-family:system-ui,Arial,sans-serif}
+      :root{--vh:1vh}
+      #hero{
+        position:relative;width:100%;
+        height:100dvh;height:calc(var(--vh)*100);
+        overflow:hidden;overscroll-behavior:contain;
+        background:radial-gradient(120% 120% at 30% 20%,#0161ae 0%,#06223d 60%,#002c50 100%);
       }
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-      }
-      body {
-        background: #0a2746;
-        color: #e8eef6;
-        font-family: system-ui, Arial, sans-serif;
-      }
-      :root {
-        --vh: 1vh;
-      }
-      #hero {
-        position: relative;
-        width: 100%;
-        height: 100dvh;
-        height: calc(var(--vh) * 100);
-        overflow: hidden;
-        overscroll-behavior: contain;
-        background: radial-gradient(
-          120% 120% at 30% 20%,
-          #0161ae 0%,
-          #06223d 60%,
-          #002c50 100%
-        );
-      }
-      #hero canvas {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-      .poster {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        filter: saturate(0.9) brightness(1.05);
-      }
-      .poster.hidden {
-        display: none;
-      }
-      .status {
-        position: absolute;
-        inset: auto 0 1rem 0;
-        text-align: center;
-        font-size: 0.9rem;
-        opacity: 0.7;
-        pointer-events: none;
-      }
-      .copy {
-        position: absolute;
-        max-width: 44ch;
-        line-height: 1.1;
-        letter-spacing: 0.02em;
-        text-wrap: balance;
-      }
-      #copy1 {
-        left: 10vw;
-        top: 22vh;
-        font-family: "Archimoto V01 Regular", system-ui, Arial, sans-serif;
-        font-weight: 400;
-        font-size: clamp(48px, 6vw, 96px);
-        line-height: 1;
-        color: #e9eef6;
-        letter-spacing: -0.02em;
-      }
-
-      #copy2 {
-        right: 5vw;
-        top: 80vh;
-        font-family: "Space Grotesk Medium", system-ui, Arial, sans-serif;
-        font-weight: 500;
-        font-size: clamp(16px, 1.6vw, 20px);
-        line-height: 2.25;
-        color: #d9e3ef;
-        opacity: 0;
-        pointer-events: none;
-        max-width: 52ch;
-      }
-
-      #after {
-        min-height: 200vh;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(180deg, #051c33 0%, #0b0a46 100%);
-      }
+      #hero canvas{display:block;width:100%;height:100%}
+      .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.9) brightness(1.05)}
+      .poster.hidden{display:none}
+      .status{position:absolute;inset:auto 0 1rem 0;text-align:center;font-size:.9rem;opacity:.7;pointer-events:none}
+      .copy{position:absolute;max-width:44ch;line-height:1.1;letter-spacing:.02em;text-wrap:balance}
+      #copy1,#copy2{opacity:0;pointer-events:none}
+      #after{min-height:200vh;display:grid;place-items:center;background:linear-gradient(180deg,#051c33 0%,#0b0a46 100%)}
     </style>
   </head>
   <body>
     <section id="hero" aria-label="Hero 3D stage">
-      <img
-        class="poster"
-        alt="Molecule hero poster"
-        src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E"
-      />
-      <div class="status" id="status">Bonds + Pin setup…</div>
-      <div id="copy1" class="copy">
-        /&thinsp;IN THE<br />&nbsp; PURSUIT OF<br />
-        <span style="color: #f89a5f">&nbsp; PROGRESS</span>
-      </div>
-      <div id="copy2" class="copy">
-        Chematek is an industrial technology company that offers products,
-        services, and solutions for chemicals, lubricants and engineering,
-        procurement, and construction.
-      </div>
+      <img class="poster" alt="Molecule hero poster"
+        src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E" />
+      <div class="status" id="status">Spin-only baseline…</div>
+      <div id="copy1" class="copy"></div>
+      <div id="copy2" class="copy"></div>
     </section>
-    <section id="after">
-      <div>Scroll past the pinned hero to verify release behavior.</div>
-    </section>
+    <section id="after"><div>Scroll past the pinned hero to verify release behavior.</div></section>
 
     <script src="./assets/vendor/gsap.min.js"></script>
     <script src="./assets/vendor/ScrollTrigger.min.js"></script>
-    <script>
-      if (window.gsap && window.ScrollTrigger) {
-        gsap.registerPlugin(ScrollTrigger);
-      }
-    </script>
+    <script>if (window.gsap && window.ScrollTrigger){gsap.registerPlugin(ScrollTrigger);}</script>
+
     <script type="module">
       import * as THREE from "./assets/vendor/three.module.min.js";
 
-      // Constants - updated for 50% smaller size
-      const CONFIG = {
-        CAP_VIS_EPS: 0.03,
-        CAP_SHRINK_IN: 0.08,
-        CAP_SHRINK_OUT: 0.18,
-        CAP_SCALE: 1.06,
-        BASE_RADIUS: 0.25, // Reduced from 0.5 (50% smaller)
-        BOND_RADIUS: 0.07, // Reduced from 0.14 (50% smaller)
-        RING_RADIUS: 1.45, // Reduced from 2.9 (50% smaller)
-        TARGET_RADIUS: 0.9, // Reduced from 1.8 (50% smaller)
-        BULGE_RATIO: 0.35,
-        LUT_SAMPLES: 240,
-        BASE_COLOR: 0x1a509b,
-      };
-
-      // === Liquid lag (first-order low-pass) =====================
-      const LAG = {
-        atom: 6.0, // s^-1   higher = snappier, lower = gooier
-        bond: 7.5, // s^-1   bonds can be a bit snappier
-        rotation: 1.8, // s^-1   overall group rotation lag
-      };
-
-      function dampNumber(cur, target, dt, lambda) {
-        const t = 1 - Math.exp(-lambda * dt);
-        return cur + (target - cur) * t;
-      }
-      function dampVec3(v, target, dt, lambda) {
-        const t = 1 - Math.exp(-lambda * dt);
-        v.x += (target.x - v.x) * t;
-        v.y += (target.y - v.y) * t;
-        v.z += (target.z - v.z) * t;
-        return v;
-      }
-
-      // Cached reusable objects
-      const tempVectors = {
-        v1: new THREE.Vector3(),
-        v2: new THREE.Vector3(),
-        v3: new THREE.Vector3(),
-        dir: new THREE.Vector3(),
-        dirN: new THREE.Vector3(),
-        tmpNeg: new THREE.Vector3(),
-        tmpCw: new THREE.Vector3(),
-        tmpOw: new THREE.Vector3(),
-        tmpCl: new THREE.Vector3(),
-        tmpOl: new THREE.Vector3(),
-      };
-
-      const UP = new THREE.Vector3(0, 1, 0);
-
-      // Mobile viewport stability
-      (function setVH() {
-        const set = () =>
-          document.documentElement.style.setProperty(
-            "--vh",
-            window.innerHeight * 0.01 + "px"
-          );
-        set();
-        addEventListener("resize", set, { passive: true });
-        addEventListener("orientationchange", set);
+      // --- Viewport unit stability for mobile
+      (function setVH(){
+        const set=()=>document.documentElement.style.setProperty("--vh", window.innerHeight*0.01 + "px");
+        set(); addEventListener("resize", set, {passive:true}); addEventListener("orientationchange", set);
       })();
 
       const heroEl = document.getElementById("hero");
       const statusEl = document.getElementById("status");
       const posterEl = document.querySelector(".poster");
 
-      {
-        const host = heroEl; // mount in #hero
-        host.style.position = "relative";
-        host.style.background = "transparent"; // let canvas show
-
+      // === Bokeh BG (under everything; keep CSS fallback until first paint)
+      (function(){
+        const host = heroEl;
         const bg = document.createElement("canvas");
-        const g = bg.getContext("2d", { alpha: false });
-        bg.style.position = "absolute";
-        bg.style.inset = "0";
-        bg.style.pointerEvents = "none";
-        bg.style.zIndex = "-1"; // behind WebGL
+        const g = bg.getContext("2d", {alpha:false});
+        bg.style.position="absolute"; bg.style.inset="0"; bg.style.pointerEvents="none";
+        bg.style.zIndex="-2"; // sits under gradient canvas
         host.prepend(bg);
 
-        const GOLD = "#ffcf86"; // warm bokeh color
-        const GOLD_2 = "#ffc261";
-        const BASE = "#050505"; // very dark base
+        const GOLD="#ffcf86", GOLD_2="#ffc261", BASE="#050505";
+        let W=0,H=0,DPR=1,running=true, firstPaint=false;
+        const M=26, discs=[];
 
-        let W = 0,
-          H = 0,
-          DPR = 1,
-          running = true;
-        const M = 26; // number of discs
-        const discs = [];
-
-        function resizeBG() {
-          DPR = Math.min(window.devicePixelRatio || 1, 1.75);
-          W = Math.max(1, host.clientWidth);
-          H = Math.max(1, host.clientHeight);
-          bg.width = Math.floor(W * DPR);
-          bg.height = Math.floor(H * DPR);
-          bg.style.width = W + "px";
-          bg.style.height = H + "px";
-          g.setTransform(DPR, 0, 0, DPR, 0, 0);
+        function resize(){
+          DPR = Math.min(window.devicePixelRatio||1, 1.75);
+          W = Math.max(1, host.clientWidth); H = Math.max(1, host.clientHeight);
+          bg.width = Math.floor(W*DPR); bg.height = Math.floor(H*DPR);
+          bg.style.width=W+"px"; bg.style.height=H+"px";
+          g.setTransform(DPR,0,0,DPR,0,0);
         }
-
-        function spawn() {
-          discs.length = 0;
-          for (let i = 0; i < M; i++) {
-            const r = (Math.random() * 80 + 50) * (H / 800);
-            const x = Math.random() * W;
-            const y = Math.random() * H;
-            const s = (0.15 + Math.random() * 0.35) * 0.12; // speed
-            const a = Math.random() * Math.PI * 2;
-            discs.push({ x, y, r, s, a, phi: Math.random() * 6.28 });
+        function spawn(){
+          discs.length=0;
+          for(let i=0;i<M;i++){
+            const r=(Math.random()*80+50)*(H/800), x=Math.random()*W, y=Math.random()*H;
+            const s=(0.15+Math.random()*0.35)*0.12, a=Math.random()*Math.PI*2;
+            discs.push({x,y,r,s,a,phi:Math.random()*6.28});
           }
         }
+        function grad(x,y,r){const t=g.createRadialGradient(x,y,r*0.05,x,y,r);t.addColorStop(0,"rgba(255,230,180,0.85)");t.addColorStop(0.45,GOLD);t.addColorStop(1,"rgba(0,0,0,0)");return t;}
+        function frame(t){
+          if(!running) return;
+          g.fillStyle=BASE; g.fillRect(0,0,W,H);
+          for(const d of discs){
+            d.a += d.s*0.5; d.phi += 0.002;
+            d.x += Math.cos(d.a)*d.s*30.0; d.y += Math.sin(d.a)*d.s*18.0;
+            if(d.x<-d.r) d.x=W+d.r; if(d.x>W+d.r) d.x=-d.r;
+            if(d.y<-d.r) d.y=H+d.r; if(d.y>H+d.r) d.y=-d.r;
 
-        function grad(x, y, r) {
-          const t = g.createRadialGradient(x, y, r * 0.05, x, y, r);
-          t.addColorStop(0.0, "rgba(255,230,180,0.85)");
-          t.addColorStop(0.45, GOLD);
-          t.addColorStop(1.0, "rgba(0,0,0,0)");
-          return t;
-        }
+            g.globalCompositeOperation="lighter"; g.fillStyle=grad(d.x,d.y,d.r);
+            g.beginPath(); g.arc(d.x,d.y,d.r,0,Math.PI*2); g.fill();
 
-        function frame(t) {
-          if (!running) return;
-          g.fillStyle = BASE;
-          g.fillRect(0, 0, W, H);
-
-          // gentle angle drift for parallax
-          for (const d of discs) {
-            d.a += d.s * 0.5;
-            d.phi += 0.002;
-            d.x += Math.cos(d.a) * d.s * 30.0;
-            d.y += Math.sin(d.a) * d.s * 18.0;
-
-            // wrap
-            if (d.x < -d.r) d.x = W + d.r;
-            if (d.x > W + d.r) d.x = -d.r;
-            if (d.y < -d.r) d.y = H + d.r;
-            if (d.y > H + d.r) d.y = -d.r;
-
-            // draw
-            g.globalCompositeOperation = "lighter";
-            g.fillStyle = grad(d.x, d.y, d.r);
-            g.beginPath();
-            g.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-            g.fill();
-
-            // soft hot-core accent
-            g.globalCompositeOperation = "screen";
-            g.fillStyle = GOLD_2;
-            g.globalAlpha = 0.06;
-            g.beginPath();
-            g.arc(
-              d.x,
-              d.y,
-              d.r * 0.35 * (1 + 0.2 * Math.sin(d.phi)),
-              0,
-              Math.PI * 2
-            );
-            g.fill();
-            g.globalAlpha = 1;
+            g.globalCompositeOperation="screen"; g.fillStyle=GOLD_2; g.globalAlpha=0.06;
+            g.beginPath(); g.arc(d.x,d.y,d.r*0.35*(1+0.2*Math.sin(d.phi)),0,Math.PI*2); g.fill();
+            g.globalAlpha=1;
           }
-
-          // return to normal for next frame
-          g.globalCompositeOperation = "source-over";
+          g.globalCompositeOperation="source-over";
+          if(!firstPaint){ heroEl.style.background="transparent"; firstPaint=true; }
           requestAnimationFrame(frame);
         }
+        resize(); spawn(); requestAnimationFrame(frame);
+        addEventListener("resize", ()=>{resize(); spawn();});
+        document.addEventListener("visibilitychange", ()=>{running=!document.hidden; if(running) requestAnimationFrame(frame);});
+      })();
 
-        resizeBG();
-        spawn();
-        requestAnimationFrame(frame);
-        addEventListener("resize", () => {
-          resizeBG();
-          spawn();
-        });
-
-        document.addEventListener("visibilitychange", () => {
-          running = !document.hidden;
-          if (running) requestAnimationFrame(frame);
-        });
-      }
-
+      // === Three.js scene
       let renderer, scene, camera, molecule, rafId;
-      let bonds = [];
-      let atoms = [];
-      let center;
+      let spinRig; // new parent for stable spin axis
+      let bonds = [], atoms = [], center;
 
-      // Geometry cache
-      let atomGeo, halfGeo;
+      // Materials/geometry
+      const CONFIG = {
+        BASE_RADIUS: 0.25,
+        BOND_RADIUS: 0.07,
+        TARGET_RADIUS: 0.9,
+        BASE_COLOR: 0x1a509b,
+      };
 
-      // Material cache
-      let atomMat, bondMat;
-
-      try {
-        // Renderer setup
-        renderer = new THREE.WebGLRenderer({
-          antialias: true,
-          alpha: false,
-          powerPreference: "high-performance",
-        });
-
+      try{
+        renderer = new THREE.WebGLRenderer({antialias:true, alpha:false, powerPreference:"high-performance"});
         const isCoarse = matchMedia("(pointer: coarse)").matches;
         const dprCap = isCoarse ? 1.75 : 2.0;
-        renderer.setPixelRatio(Math.min(devicePixelRatio || 1, dprCap));
+        renderer.setPixelRatio(Math.min(devicePixelRatio||1, dprCap));
         renderer.setSize(heroEl.clientWidth, heroEl.clientHeight, false);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
-        renderer.physicallyCorrectLights = true;
-        renderer.sortObjects = true;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.setClearColor(0x000000, 0);
         heroEl.prepend(renderer.domElement);
 
-        // Camera positioning function - adjusted for smaller molecule
-        function updateCameraForViewport() {
-          const w = window.innerWidth;
-          let z = 5.0; // Reduced from 8.0 for smaller molecule
-          if (w <= 1280) z = 5.4;
-          if (w <= 900) z = 5.8;
-          if (w <= 600) z = 6.2;
-          if (w <= 420) z = 6.6;
-          camera.position.z = z;
-          camera.updateProjectionMatrix();
+        function updateCameraForViewport(){
+          const w = heroEl.clientWidth; // container-based for consistency
+          let z = 5.0; if (w<=1280) z=5.4; if (w<=900) z=5.8; if (w<=600) z=6.2; if (w<=420) z=6.6;
+          camera.position.z = z; camera.updateProjectionMatrix();
         }
 
-        // Scene setup
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(
-          35,
-          heroEl.clientWidth / heroEl.clientHeight,
-          0.1,
-          100
-        );
-        camera.position.set(0, 0, 5); // Reduced from 8
+        camera = new THREE.PerspectiveCamera(35, heroEl.clientWidth/heroEl.clientHeight, 0.1, 100);
+        camera.position.set(0,0,5);
 
-        // Lighting setup
-        const key = new THREE.DirectionalLight(0xfff4e6, 2.75); // Warmer key light
-        key.position.set(20.2, 30.0, 40.0);
+        // Lights
+        const key = new THREE.DirectionalLight(0xfff4e6, 2.75); key.position.set(20.2,30.0,40.0);
+        const rim = new THREE.DirectionalLight(0xf49a59, 3.38); rim.position.set(-3.0,1.2,-2.2);
+        const amb = new THREE.AmbientLight(0xfff4e6, 0.12);
+        scene.add(key,rim,amb);
 
-        const rim = new THREE.DirectionalLight(0xf49a59, 3.38); // Client's requested #f49a59
-        rim.position.set(-3.0, 1.2, -2.2);
-
-        const amb = new THREE.AmbientLight(0xfff4e6, 0.12); // Warmer ambient
-        scene.add(key, rim, amb);
-
-        // Environment setup
-        const pmrem = new THREE.PMREMGenerator(renderer);
-        pmrem.compileEquirectangularShader();
-
+        // Simple env via PMREM from colored planes
+        const pmrem = new THREE.PMREMGenerator(renderer); pmrem.compileEquirectangularShader();
         const envScene = new THREE.Scene();
-        const room = new THREE.Mesh(
-          new THREE.BoxGeometry(10, 10, 10),
-          new THREE.MeshBasicMaterial({ color: 0x0a2746, side: THREE.BackSide })
-        );
-        envScene.add(room);
+        envScene.add(new THREE.Mesh(new THREE.BoxGeometry(10,10,10), new THREE.MeshBasicMaterial({color:0x0a2746, side:THREE.BackSide})));
+        [[-2.2,2.1,-3.0,0,0,3.2,2.2,0xffd6b8,2.9],[3.0,-1.0,2.2,0,Math.PI/2,2.2,1.7,0xfff0e0,2.2],[-3.2,-2.0,1.0,0,-Math.PI/2,1.6,2.3,0xf49a59,1.7]]
+          .forEach(([x,y,z,rx,ry,w,h,hex,inten])=>{
+            const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({color:hex}));
+            m.position.set(x,y,z); m.rotation.set(rx,ry,0); m.material.color.multiplyScalar(inten); envScene.add(m);
+          });
+        const envRT = pmrem.fromScene(envScene, 0.04); scene.environment = envRT.texture;
 
-        // Update environment panels for warmer lighting
-        const panelConfigs = [
-          // x,   y,   z,   rx,  ry,              w,   h,     hexColor,  intensity
-          [-2.2, 2.1, -3.0, 0.0, 0.0, 3.2, 2.2, 0xffd6b8, 2.9], // Warmer keybox
-          [3.0, -1.0, 2.2, 0.0, Math.PI / 2, 2.2, 1.7, 0xfff0e0, 2.2], // Warm fill
-          [-3.2, -2.0, 1.0, 0.0, -Math.PI / 2, 1.6, 2.3, 0xf49a59, 1.7], // Client's orange
-        ];
-
-        panelConfigs.forEach(([x, y, z, rx, ry, w, h, hex, inten]) => {
-          const m = new THREE.Mesh(
-            new THREE.PlaneGeometry(w, h),
-            new THREE.MeshBasicMaterial({ color: hex })
-          );
-          m.position.set(x, y, z);
-          m.rotation.set(rx, ry, 0);
-          m.material.color.multiplyScalar(inten);
-          envScene.add(m);
+        // Materials
+        const atomMat = new THREE.MeshPhysicalMaterial({
+          color: CONFIG.BASE_COLOR, roughness:0.95, metalness:0.3,
+          transmission:0.5, ior:3.1, thickness:0.3,
+          attenuationColor:new THREE.Color(CONFIG.BASE_COLOR), attenuationDistance:1.6,
+          envMapIntensity:1.46, transparent:true
         });
-        const envRT = pmrem.fromScene(envScene, 0.04);
-        scene.environment = envRT.texture;
+        const bondMat = atomMat.clone(); bondMat.transmission=0.82; bondMat.thickness=0.42; bondMat.envMapIntensity=1.25;
 
-        // Material setup
-        atomMat = new THREE.MeshPhysicalMaterial({
-          color: CONFIG.BASE_COLOR,
-          roughness: 0.95,
-          metalness: 0.3,
-          clearcoat: 0.0,
-          clearcoatRoughness: 0.02,
-          transmission: 0.5,
-          ior: 3.1,
-          thickness: 0.3,
-          attenuationColor: new THREE.Color(CONFIG.BASE_COLOR),
-          attenuationDistance: 1.6,
-          envMapIntensity: 1.46,
-          opacity: 1,
-          transparent: true,
-        });
+        // Geometries
+        const atomGeo = new THREE.SphereGeometry(CONFIG.BASE_RADIUS,48,48);
+        const halfGeo = new THREE.CylinderGeometry(CONFIG.BOND_RADIUS, CONFIG.BOND_RADIUS, 1, 24); halfGeo.translate(0,0.5,0);
 
-        bondMat = atomMat.clone();
-        bondMat.transmission = 0.82;
-        bondMat.thickness = 0.42;
-        bondMat.envMapIntensity = 1.25;
-
-        // Geometry setup - create once and reuse
-        atomGeo = new THREE.SphereGeometry(CONFIG.BASE_RADIUS, 48, 48);
-        halfGeo = new THREE.CylinderGeometry(
-          CONFIG.BOND_RADIUS,
-          CONFIG.BOND_RADIUS,
-          1,
-          24
-        );
-        halfGeo.translate(0, 0.5, 0);
-
-        // Molecule structure
-        molecule = new THREE.Group();
-        scene.add(molecule);
-
-        const masterSurface = new THREE.Group();
-        molecule.add(masterSurface);
-
-        const centerGroup = new THREE.Group();
-        const ringGroup = new THREE.Group();
+        // Structure
+        // SpinRig -> molecule -> masterSurface
+        spinRig = new THREE.Group(); scene.add(spinRig);
+        molecule = new THREE.Group(); spinRig.add(molecule);
+        const masterSurface = new THREE.Group(); molecule.add(masterSurface);
+        const centerGroup = new THREE.Group(); const ringGroup = new THREE.Group();
         masterSurface.add(centerGroup, ringGroup);
-        masterSurface.rotation.set(Math.PI / 1.5, -0.2, 0.0);
-        masterSurface.userData.rotGoal = {
-          x: masterSurface.rotation.x,
-          y: masterSurface.rotation.y,
-          z: masterSurface.rotation.z,
-        };
+        // Aesthetic orientation of the molecule itself (static during the spin pass)
+        masterSurface.rotation.set(Math.PI/1.5, -0.2, 0.0);
+        masterSurface.userData.rotGoal = {x:masterSurface.rotation.x, y:masterSurface.rotation.y, z:masterSurface.rotation.z};
+        // --- Spin axis (NOT local Y). Use a diagonal so it's never colinear with any bond.
+        const SPIN_AXIS = new THREE.Vector3(0.61, 0.51, 0.61).normalize();
+        // Yaw accumulator for the spin rig; GSAP animates this scalar.
+        spinRig.userData.yawGoal = 0;
+        const _spinQuatTarget = new THREE.Quaternion();
+        const _spinQuatCurrent = new THREE.Quaternion(); // current rig quat snapshot
 
-        // Central atom
-        center = new THREE.Mesh(atomGeo, atomMat);
-        center.position.set(0, 0, 0);
-        center.scale.setScalar(1);
-        center.userData.baseScale = center.scale.x;
-        center.userData.squash = 0;
-        centerGroup.add(center);
-        center.renderOrder = 0;
+        // Center atom
+        center = new THREE.Mesh(atomGeo, atomMat); center.position.set(0,0,0); center.scale.setScalar(1); center.userData.baseScale=center.scale.x;
+        centerGroup.add(center); center.renderOrder=0;
 
-        // Outer atoms positions
-        const baseAngle = Math.PI / 2;
-        const step = (2 * Math.PI) / 5;
-
-        const startRing = Array.from({ length: 5 }, (_, i) => {
-          const ang = baseAngle - i * step;
-          return new THREE.Vector3(
-            Math.cos(ang) * CONFIG.RING_RADIUS,
-            Math.sin(ang) * CONFIG.RING_RADIUS,
-            0
-          );
-        });
-
-        // Create atoms
-        atoms = Array.from({ length: 5 }, (_, i) => {
-          const m = new THREE.Mesh(atomGeo, atomMat);
-          m.position.copy(startRing[i]);
-          m.scale.setScalar(1.2 + Math.random() * 0.45);
-          m.userData.baseScale = m.scale.x; // stable reference for squash & breathing
-          m.userData.squash = 0; // start neutral
-          ringGroup.add(m);
-          m.renderOrder = 2;
-          return m;
-        });
-
-        const startPositions = atoms.map((m) => m.position.clone());
-
-        atoms.forEach((m) => {
-          m.userData.goal = m.position.clone();
-        });
-
-        // Target positions
+        // Target positions (final bonded layout)
         const R = CONFIG.TARGET_RADIUS;
         const targets = [
-          new THREE.Vector3(0.0, 0.0, R),
-          new THREE.Vector3(0.0, 0.0, -R),
-          new THREE.Vector3(0.0, R, 0.0),
-          new THREE.Vector3(
-            R * Math.cos(-Math.PI / 6),
-            R * Math.sin(-Math.PI / 6),
-            0.0
-          ),
-          new THREE.Vector3(
-            R * Math.cos((7 * Math.PI) / 6),
-            R * Math.sin((7 * Math.PI) / 6),
-            0.0
-          ),
+          new THREE.Vector3(0,0,R),
+          new THREE.Vector3(0,0,-R),
+          new THREE.Vector3(0,R,0),
+          new THREE.Vector3(R*Math.cos(-Math.PI/6), R*Math.sin(-Math.PI/6), 0),
+          new THREE.Vector3(R*Math.cos(7*Math.PI/6), R*Math.sin(7*Math.PI/6), 0),
         ];
 
-        function buildSphericalArcSampler(p0, p1) {
-          // start/end directions + radii
-          const s = p0.clone();
-          const r0 = s.length();
-          s.normalize();
-          const e = p1.clone();
-          const r1 = e.length();
-          e.normalize();
+        // Outer atoms — place directly at targets (already finished state)
+        atoms = Array.from({length:5}, (_,i)=>{
+          const m=new THREE.Mesh(atomGeo, atomMat);
+          m.position.copy(targets[i]);
+          m.scale.setScalar(1.2 + Math.random()*0.45);
+          m.userData.baseScale = m.scale.x;
+          ringGroup.add(m); m.renderOrder=2; return m;
+        });
 
-          // rotation axis & angle between s and e
-          let axis = new THREE.Vector3().crossVectors(s, e);
-          const sinΩ = axis.length();
-          const cosΩ = THREE.MathUtils.clamp(s.dot(e), -1, 1);
-          let Ω = Math.atan2(sinΩ, cosΩ);
-
-          if (sinΩ < 1e-6) {
-            // parallel or antiparallel
-            if (cosΩ > 0.999999) {
-              // identical direction: only radial change
-              return (u) =>
-                s.clone().multiplyScalar(THREE.MathUtils.lerp(r0, r1, u));
-            } else {
-              // 180° apart — pick any ortho axis
-              axis = (
-                Math.abs(s.x) < 0.9
-                  ? new THREE.Vector3(1, 0, 0)
-                  : new THREE.Vector3(0, 1, 0)
-              )
-                .cross(s)
-                .normalize();
-              Ω = Math.PI;
-            }
-          } else {
-            axis.normalize();
-          }
-
-          // sample along arc; linear radial blend (can swap to smooth if desired)
-          return (u) => {
-            const dir = s
-              .clone()
-              .applyAxisAngle(axis, u * Ω)
-              .normalize();
-            const r = THREE.MathUtils.lerp(r0, r1, u);
-            return dir.multiplyScalar(r);
-          };
-        }
-
-        // optional: arc-length LUT for steadier velocity
-        function buildArcLUT(sampleFn, samples = CONFIG.LUT_SAMPLES) {
-          const len = new Float32Array(samples + 1);
-          let prev = sampleFn(0),
-            acc = 0;
-          for (let i = 1; i <= samples; i++) {
-            const p = sampleFn(i / samples);
-            acc += p.distanceTo(prev);
-            len[i] = acc;
-            prev = p;
-          }
-          return { len, total: acc };
-        }
-        function uFromS(lut, s01) {
-          const target = s01 * lut.total;
-          let lo = 0,
-            hi = lut.len.length - 1;
-          while (lo < hi) {
-            const mid = (lo + hi) >> 1;
-            lut.len[mid] < target ? (lo = mid + 1) : (hi = mid);
-          }
-          const i = Math.max(1, lo);
-          const l0 = lut.len[i - 1],
-            l1 = lut.len[i];
-          const f = (target - l0) / Math.max(1e-6, l1 - l0);
-          return (i - 1 + f) / (lut.len.length - 1);
-        }
-
-        function moveAlongSphericalArc(atomIdx, p0, p1, tl, dur, at) {
-          const proxy = { progress: 0 };
-
-          tl.to(
-            proxy,
-            {
-              progress: 1,
-              duration: dur,
-              ease: "none", // Linear movement for consistent speed
-              onUpdate: () => {
-                // Simple spherical linear interpolation for constant angular velocity
-                const center = new THREE.Vector3(0, 0, 0);
-                const v0 = p0.clone().sub(center);
-                const v1 = p1.clone().sub(center);
-
-                const radius0 = v0.length();
-                const radius1 = v1.length();
-
-                v0.normalize();
-                v1.normalize();
-
-                const dot = v0.dot(v1);
-                const angle = Math.acos(THREE.MathUtils.clamp(dot, -1, 1));
-
-                if (angle > 0.001) {
-                  const t = proxy.progress;
-                  const radius = THREE.MathUtils.lerp(radius0, radius1, t);
-                  const interpolated = new THREE.Vector3()
-                    .copy(v0)
-                    .multiplyScalar(Math.sin((1 - t) * angle) / Math.sin(angle))
-                    .add(
-                      v1
-                        .clone()
-                        .multiplyScalar(Math.sin(t * angle) / Math.sin(angle))
-                    )
-                    .normalize()
-                    .multiplyScalar(radius);
-
-                  atoms[atomIdx].userData.goal.copy(interpolated.add(center));
-                } else {
-                  // Fallback to linear interpolation if angles are too small
-                  atoms[atomIdx].userData.goal.lerpVectors(p0, p1, t);
-                }
-              },
-            },
-            at
-          );
-        }
-
-        // Optimized elliptical via calculation
-        function createEllipticalVia(
-          startPos,
-          targetPos,
-          centerPos = new THREE.Vector3(0, 0, 0)
-        ) {
-          const { v1: toStart, v2: toTarget, v3: midpoint } = tempVectors;
-
-          toStart.subVectors(startPos, centerPos);
-          toTarget.subVectors(targetPos, centerPos);
-          midpoint.addVectors(startPos, targetPos).multiplyScalar(0.5);
-
-          const chord = tempVectors.dir.subVectors(targetPos, startPos);
-          const chordLength = chord.length();
-
-          const orbitalNormal = toStart.clone().cross(toTarget).normalize();
-          if (orbitalNormal.length() < 0.001) {
-            orbitalNormal.set(0, 0, 1);
-          }
-
-          let bulgeDirection = orbitalNormal.clone().cross(chord).normalize();
-          const midToCenter = tempVectors.v1.subVectors(centerPos, midpoint);
-          if (bulgeDirection.dot(midToCenter) > 0) {
-            bulgeDirection.multiplyScalar(-1);
-          }
-
-          const bulgeAmount = chordLength * CONFIG.BULGE_RATIO;
-          return midpoint
-            .clone()
-            .add(bulgeDirection.multiplyScalar(bulgeAmount));
-        }
-
-        const centerWorldPos = new THREE.Vector3(0, 0, 0);
-        const vias = atoms.map((_, i) =>
-          createEllipticalVia(startPositions[i], targets[i], centerWorldPos)
-        );
-
-        // Optimized Bezier LUT with reduced samples
-        function buildSmoothBezierLUT(
-          p0,
-          p1,
-          p2,
-          samples = CONFIG.LUT_SAMPLES
-        ) {
-          samples = Math.max(8, samples | 0); // guard: at least 8 samples
-          const pts = new Array(samples + 1);
-          const len = new Float32Array(samples + 1);
-          let acc = 0;
-
-          for (let i = 0; i <= samples; i++) {
-            const t = i / samples; // LINEAR t only (no easing)
-            const it = 1 - t;
-            const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
-            const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
-            const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
-
-            pts[i] = new THREE.Vector3(x, y, z);
-            if (i > 0) acc += pts[i].distanceTo(pts[i - 1]);
-            len[i] = acc;
-          }
-
-          return { pts, len, total: acc };
-        }
-
-        function tFromS(lut, s) {
-          // clamp s to [0,1]
-          s = s <= 0 ? 0 : s >= 1 ? 1 : s;
-          const target = s * lut.total;
-
-          // trivial edges
-          if (target <= 0) return 0;
-          const lastIdx = lut.len.length - 1;
-          if (target >= lut.len[lastIdx]) return 1;
-
-          // binary search
-          let lo = 0,
-            hi = lastIdx;
-          while (lo < hi) {
-            const mid = (lo + hi) >> 1;
-            if (lut.len[mid] < target) lo = mid + 1;
-            else hi = mid;
-          }
-
-          const i = Math.max(1, lo);
-          const l0 = lut.len[i - 1],
-            l1 = lut.len[i];
-          const f = (target - l0) / Math.max(1e-9, l1 - l0);
-          return (i - 1 + f) / lastIdx;
-        }
-        function moveAlongSmoothQuadratic(atomIdx, p0, p1, p2, tl, dur, at) {
-          const lut = buildSmoothBezierLUT(p0, p1, p2);
-          const proxy = { s: 0 };
-
-          tl.to(
-            proxy,
-            {
-              s: 1,
-              duration: dur,
-              ease: "none",
-              onUpdate: () => {
-                const t = tFromS(lut, proxy.s);
-                const it = 1 - t;
-                const x = it * it * p0.x + 2 * it * t * p1.x + t * t * p2.x;
-                const y = it * it * p0.y + 2 * it * t * p1.y + t * t * p2.y;
-                const z = it * it * p0.z + 2 * it * t * p1.z + t * t * p2.z;
-                const a = atoms[atomIdx];
-                const prev = (a.userData._prevPos ||= new THREE.Vector3());
-
-                a.position.set(x, y, z); // EXACT path — do not change orbit
-                (a.userData.vel ||= new THREE.Vector3())
-                  .copy(a.position)
-                  .sub(prev); // per-tick delta
-                prev.copy(a.position);
-              },
-            },
-            at
-          );
-        }
-
-        // Bond creation - REMOVED CAPS for straight bonds
-        function createCenterBond(outerIdx) {
-          const aHalf = new THREE.Mesh(halfGeo, bondMat);
+        // Bonds — fully visible from frame 0 (no growth)
+        function createCenterBond(outerIdx){
           const bHalf = new THREE.Mesh(halfGeo, bondMat);
-          aHalf.visible = bHalf.visible = false;
-          molecule.add(aHalf, bHalf);
-          aHalf.renderOrder = 1;
-          bHalf.renderOrder = 1;
+          bHalf.visible = true; molecule.add(bHalf); bHalf.renderOrder=1;
+          const pair={a:null,b:bHalf,outerIdx,growth:1,growthGoal:1}; bonds.push(pair); return pair;
+        }
+        for(let i=0;i<5;i++) createCenterBond(i);
 
-          const pair = {
-            a: aHalf,
-            b: bHalf,
-            outerIdx,
-            oneSided: true,
-            growth: 0, // ← init
-            growthGoal: 0, // ← init
-          };
-          bonds.push(pair);
-          return pair;
+        // Bond positioning (straight, extend into atoms)
+        const UP = new THREE.Vector3(0,1,0), tmp = {
+          cw:new THREE.Vector3(), ow:new THREE.Vector3(),
+          cl:new THREE.Vector3(), ol:new THREE.Vector3(),
+          dir:new THREE.Vector3(), dirN:new THREE.Vector3(), neg:new THREE.Vector3()
+        };
+        const overlap = CONFIG.BASE_RADIUS * 0.6;
+        function positionCenterBond(pair){
+          center.getWorldPosition(tmp.cw); atoms[pair.outerIdx].getWorldPosition(tmp.ow);
+          tmp.cl.copy(tmp.cw); molecule.worldToLocal(tmp.cl);
+          tmp.ol.copy(tmp.ow); molecule.worldToLocal(tmp.ol);
+          tmp.dir.subVectors(tmp.ol,tmp.cl);
+          const centerDist = tmp.dir.length(); if (centerDist <= overlap*2) { pair.b.visible=false; return; }
+          const len = Math.max(0, centerDist - overlap*2);
+          tmp.dirN.copy(tmp.dir).normalize();
+          pair.b.visible=true;
+          pair.b.position.copy(tmp.ol).add(tmp.dirN.clone().multiplyScalar(-overlap));
+          tmp.neg.copy(tmp.dirN).multiplyScalar(-1);
+          pair.b.quaternion.setFromUnitVectors(UP, tmp.neg);
+          pair.b.scale.set(1, len, 1);
         }
 
-        // Create bonds
-        for (let i = 0; i < 5; i++) {
-          createCenterBond(i);
-        }
-
-        // Optimized bond positioning - MODIFIED for straight bonds without caps
-        function positionCenterBond(pair) {
-          const {
-            tmpCw,
-            tmpOw,
-            tmpCl,
-            tmpOl,
-            dir,
-            dirN,
-            v1: tmpV1,
-            v2: tmpV2,
-            tmpNeg,
-          } = tempVectors;
-
-          center.getWorldPosition(tmpCw);
-          atoms[pair.outerIdx].getWorldPosition(tmpOw);
-
-          tmpCl.copy(tmpCw);
-          molecule.worldToLocal(tmpCl);
-          tmpOl.copy(tmpOw);
-          molecule.worldToLocal(tmpOl);
-
-          dir.subVectors(tmpOl, tmpCl);
-          const centerDist = dir.length();
-          const g = pair.growth;
-          const show = g > CONFIG.CAP_VIS_EPS;
-
-          // Straight bonds: extend into atoms to avoid gaps
-          const overlap = CONFIG.BASE_RADIUS * 0.6; // Bond extends into atoms
-          const coreLen = Math.max(0, centerDist - overlap * 2);
-          const len = coreLen * g;
-          const visible = show && len > 1e-6;
-
-          dirN.copy(dir).normalize();
-
-          // One-sided growth optimization
-          pair.a.visible = false;
-          pair.b.visible = visible;
-
-          if (visible) {
-            // Position bond to extend into both atoms
-            pair.b.position
-              .copy(tmpOl)
-              .add(tmpV2.copy(dirN).multiplyScalar(-overlap));
-            tmpNeg.copy(dirN).multiplyScalar(-1);
-            pair.b.quaternion.setFromUnitVectors(UP, tmpNeg);
-            pair.b.scale.set(1, len, 1);
-          }
-        }
-
-        // Enhanced render loop with continuous motion
-        let time = 0;
-        let isScrollComplete = false;
-        let isFinalized = false;
-        let enableFinalMotion = false;
-        let isFlight = false;
-
-        let finalBlend = 0;
+        // Render loop (no pre-flight; idle breathing after release only)
+        let time=0, finalBlend=0, enableFinalMotion=false, isFinalized=false;
         const clock = new THREE.Clock();
+        function damp(cur,tgt,dt,lam){const k=1-Math.exp(-lam*dt);return cur+(tgt-cur)*k;}
+        function render(){
+          const dt=clock.getDelta(); time+=0.008;
+          // Viscous group rotation
+          const g=masterSurface.userData.rotGoal;
+          masterSurface.rotation.x = damp(masterSurface.rotation.x, g.x, dt, 1.8);
+          masterSurface.rotation.y = damp(masterSurface.rotation.y, g.y, dt, 1.8);
+          masterSurface.rotation.z = damp(masterSurface.rotation.z, g.z, dt, 1.8);
 
-        function render() {
-          const dt = clock.getDelta();
-          time += 0.008; // Control speed of continuous motion
+          // Apply spin around fixed world axis via quaternion
+          _spinQuatTarget.setFromAxisAngle(SPIN_AXIS, spinRig.userData.yawGoal);
+          _spinQuatCurrent.copy(spinRig.quaternion);
+          // critically-damped slerp toward target for smoothness
+          spinRig.quaternion.slerp(_spinQuatTarget, Math.min(1, dt * 6.0));
 
-          // 1) viscous group rotation
-          if (masterSurface.userData.rotGoal) {
-            const g = masterSurface.userData.rotGoal;
-            masterSurface.rotation.x = dampNumber(
-              masterSurface.rotation.x,
-              g.x,
-              dt,
-              LAG.rotation
-            );
-            masterSurface.rotation.y = dampNumber(
-              masterSurface.rotation.y,
-              g.y,
-              dt,
-              LAG.rotation
-            );
-            masterSurface.rotation.z = dampNumber(
-              masterSurface.rotation.z,
-              g.z,
-              dt,
-              LAG.rotation
-            );
-          }
-
-          // 2) viscous atom following (guarded so Bezier can drive position directly)
-          for (let i = 0; i < atoms.length; i++) {
-            const a = atoms[i];
-            const goal = a.userData.goal; // may be null during Bezier flight
-            if (goal) dampVec3(a.position, goal, dt, LAG.atom);
-          }
-
-          // 3) viscous bond growth
-          for (const pair of bonds) {
-            const cur = Number.isFinite(pair.growth) ? pair.growth : 0;
-            const tgt = Number.isFinite(pair.growthGoal)
-              ? pair.growthGoal
-              : cur;
-            pair.growth = dampNumber(cur, tgt, dt, LAG.bond);
-          }
-          // 2.5) goomy look: squash-only during flight (does not alter positions)
-          if (isFlight) {
-            for (let i = 0; i < atoms.length; i++) {
-              const a = atoms[i];
-
-              // per-frame speed from Bezier updates
-              const speed = a.userData.vel ? a.userData.vel.length() : 0;
-
-              // tasteful target squash (cap small; tune multiplier to taste)
-              const targetK = Math.min(0.085, speed * 1.25);
-
-              // smooth the squash so it feels viscous
-              a.userData.squash = dampNumber(
-                a.userData.squash || 0,
-                targetK,
-                dt,
-                7.0
-              );
-
-              // apply anisotropic scale around a stable base (never from current scale)
-              const base = a.userData.baseScale ?? 1.0;
-              const k = a.userData.squash || 0;
-              a.scale.set(
-                base * (1 + 0.45 * k),
-                base * (1 - 0.9 * k),
-                base * (1 + 0.45 * k)
-              );
-            }
-          }
-
-          // Apply continuous motion only after scroll animation completes
-          if (enableFinalMotion || finalBlend > 0) {
-            const spinMix = enableFinalMotion ? 1 : finalBlend;
-
-            // additive, so it won't fight GSAP's masterSurface rotation
-            molecule.rotation.y += 0.00175 * spinMix;
-            molecule.rotation.x += Math.sin(time * 0.8) * 0.0012 * spinMix;
-            molecule.rotation.z += Math.cos(time * 0.6) * 0.0008 * spinMix;
-
-            // breathing (kept as-is)
-            atoms.forEach((atom, i) => {
-              const offset = i * 0.8;
-              const vibration = Math.sin(time * 1.2 + offset) * 0.002 * spinMix;
-              const baseScale = atom.userData.baseScale;
-              atom.scale.setScalar(baseScale + vibration);
-            });
-            const centerBreathing = Math.sin(time * 0.9) * 0.003 * spinMix;
-            const centerBaseScale = center.userData.baseScale;
-            center.scale.setScalar(centerBaseScale + centerBreathing);
+          if (enableFinalMotion || finalBlend>0){
+            const mix = enableFinalMotion?1:finalBlend;
+            molecule.rotation.y += 0.00175*mix;
+            molecule.rotation.x += Math.sin(time*0.8)*0.0012*mix;
+            molecule.rotation.z += Math.cos(time*0.6)*0.0008*mix;
+            atoms.forEach((a,i)=>{const base=a.userData.baseScale; const vib=Math.sin(time*1.2+i*0.8)*0.002*mix; a.scale.setScalar(base+vib);});
+            const cb = Math.sin(time*0.9)*0.003*mix; center.scale.setScalar(center.userData.baseScale + cb);
           }
 
           scene.updateMatrixWorld(true);
           bonds.forEach(positionCenterBond);
-          renderer.render(scene, camera);
-          rafId = requestAnimationFrame(render);
+          renderer.render(scene,camera);
+          rafId=requestAnimationFrame(render);
         }
-        rafId = requestAnimationFrame(render);
+        rafId=requestAnimationFrame(render);
 
-        // Resize handling
-        let resizeRAF;
-        const onResize = () => {
-          const rect = heroEl.getBoundingClientRect();
-          const w = Math.max(1, Math.floor(rect.width));
-          const h = Math.max(1, Math.floor(rect.height));
+        // Resize
+        function onResize(){
+          const rect=heroEl.getBoundingClientRect(); const w=Math.max(1,rect.width|0); const h=Math.max(1,rect.height|0);
+          const isCoarse = matchMedia("(pointer: coarse)").matches; const dprCap=isCoarse?1.75:2.0;
+          const nextDpr=Math.min(window.devicePixelRatio||1,dprCap);
+          if (renderer.getPixelRatio()!==nextDpr) renderer.setPixelRatio(nextDpr);
+          camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false); updateCameraForViewport();
+          if (window.ScrollTrigger) ScrollTrigger.refresh();
+        }
+        addEventListener("resize", onResize, {passive:true}); addEventListener("orientationchange", onResize);
+        addEventListener("pageshow", e=>{if(e.persisted) onResize();},{passive:true}); onResize();
 
-          const isCoarse = matchMedia("(pointer: coarse)").matches;
-          const dprCap = isCoarse ? 1.75 : 2.0;
-          const nextDpr = Math.min(window.devicePixelRatio || 1, dprCap);
-          if (renderer.getPixelRatio() !== nextDpr) {
-            renderer.setPixelRatio(nextDpr);
-          }
-
-          camera.aspect = w / h;
-          camera.updateProjectionMatrix();
-          renderer.setSize(w, h, false);
-          updateCameraForViewport();
-
-          if (window.ScrollTrigger) {
-            cancelAnimationFrame(resizeRAF);
-            resizeRAF = requestAnimationFrame(() => ScrollTrigger.refresh());
-          }
-        };
-
-        addEventListener("resize", onResize, { passive: true });
-        addEventListener("orientationchange", onResize);
-        addEventListener(
-          "pageshow",
-          (e) => {
-            if (e.persisted) onResize();
-          },
-          { passive: true }
-        );
-        onResize();
-
-        // GSAP Timeline
-        if (window.gsap && window.ScrollTrigger) {
-          const PREFERS_REDUCED = window.matchMedia(
-            "(prefers-reduced-motion: reduce)"
-          ).matches;
-
-          updateCameraForViewport();
-
-          function finalizeStatic() {
-            atoms.forEach((m, i) => {
-              m.position.copy(targets[i]);
-              // Store base scale for breathing animation
-              m.userData.baseScale = m.scale.x;
-            });
-            bonds.forEach((pair) => {
-              pair.growth = 1;
-              if (pair.a) pair.a.visible = false;
-              if (pair.b) pair.b.visible = true;
-              positionCenterBond(pair);
-            });
-
-            // Store final rotation and enable continuous motion
-            masterSurface.userData.finalRotation = {
-              x: masterSurface.rotation.x,
-              y: masterSurface.rotation.y,
-              z: masterSurface.rotation.z,
-            };
-            center.userData.baseScale = center.scale.x;
-            isScrollComplete = true;
-
-            renderer.render(scene, camera);
-            gsap.set("#copy1", { opacity: 0, y: -10 });
-            gsap.set("#copy2", { opacity: 1, y: 0 });
-          }
-
-          if (PREFERS_REDUCED) {
-            finalizeStatic();
-            if (rafId) {
-              cancelAnimationFrame(rafId);
-              rafId = 0;
-            }
-          } else {
-            gsap.ticker.lagSmoothing(0);
-            const tl = gsap.timeline({
-              defaults: { ease: "none" },
-              scrollTrigger: {
-                id: "heroST",
-                trigger: heroEl,
-                start: "top top",
-                end: "+=180%",
-                scrub: 1.0,
-                pin: true,
-                anticipatePin: 1,
-                invalidateOnRefresh: true,
-
-                onUpdate: (self) => {
-                  // NEW — ramp up pre-spin from 97%→100% while still pinned
-                  if (self.direction > 0) {
-                    finalBlend = gsap.utils.clamp(
-                      0,
-                      1,
-                      (self.progress - 0.97) / 0.03
-                    );
-                  } else {
-                    finalBlend = 0; // kill pre-spin on upward scrub so rollback feels clean
-                  }
-
-                  if (!isFinalized && self.progress >= 0.999) {
-                    masterSurface.userData.finalRotation = {
-                      x: masterSurface.rotation.x,
-                      y: masterSurface.rotation.y,
-                      z: masterSurface.rotation.z,
-                    };
-                    atoms.forEach((a) => (a.userData.baseScale = a.scale.x));
-                    center.userData.baseScale = center.scale.x;
-
-                    isScrollComplete = true;
-                    isFinalized = true;
-                    isFlight = false;
-                    enableFinalMotion = !self.isActive;
-                  }
-                  // enable full free motion only once unpinned
-                  enableFinalMotion = isFinalized && !self.isActive;
-                },
-
-                onEnter: () => {
-                  if (!rafId) rafId = requestAnimationFrame(render);
-                  finalBlend = 0; // reset pre-spin when re-entering
-                  enableFinalMotion = false;
-                },
-                onEnterBack: () => {
-                  if (!rafId) rafId = requestAnimationFrame(render);
-                  finalBlend = 0;
-                  enableFinalMotion = false;
-                },
-                onLeave: () => {
-                  if (!isFinalized) {
-                    if (rafId) {
-                      cancelAnimationFrame(rafId);
-                      rafId = 0;
-                    }
-                  } else {
-                    // immediately switch from pre-spin to full free motion after release
-                    enableFinalMotion = true;
-                    finalBlend = 0;
-                  }
-                },
-                onLeaveBack: () => {
-                  if (!isFinalized && rafId) {
-                    cancelAnimationFrame(rafId);
-                    rafId = 0;
-                  }
-                  enableFinalMotion = false;
-                  finalBlend = 0;
-                },
+        // === Spin-only GSAP timeline (exactly one 360°; ease:none)
+        if (window.gsap && window.ScrollTrigger){
+          gsap.ticker.lagSmoothing(0);
+          const tl = gsap.timeline({
+            defaults:{ease:"none"},
+            scrollTrigger:{
+              trigger:heroEl, start:"top top", end:"+=120%", scrub:1, pin:true, anticipatePin:1,
+              onUpdate:self=>{
+                if (!isFinalized && self.progress>=0.999){
+                  // capture state; idle motion after unpin
+                  center.userData.baseScale = center.scale.x;
+                  atoms.forEach(a=>a.userData.baseScale=a.scale.x);
+                  isFinalized=true; enableFinalMotion=!self.isActive;
+                }
+                enableFinalMotion = isFinalized && !self.isActive;
+                // a tiny pre-spin just before release to avoid stall
+                finalBlend = self.isActive ? Math.max(0,(self.progress-0.97)/0.03) : 0;
               },
-            });
-
-            tl.set("#copy1", { opacity: 0, y: 12 });
-            tl.set("#copy2", { opacity: 0, y: 12 });
-            atoms.forEach((a) => {
-              a.userData.goal = null;
-            });
-            isFlight = true;
-
-            tl.to(
-              "#copy1",
-              { opacity: 1, y: 0, duration: 0.16, ease: "power2.out" },
-              0.42 // Start after 2nd bond begins forming (was 0.22)
-            );
-            tl.to(
-              "#copy1",
-              { opacity: 0, y: -10, duration: 0.12, ease: "power1.out" },
-              0.78
-            );
-            tl.to(
-              "#copy2",
-              { opacity: 1, y: 0, duration: 0.18, ease: "power2.out" },
-              0.82
-            );
-
-            atoms.forEach((a) => {
-              a.userData.goal = null;
-            });
-            const yawTurn = Math.PI * 2;
-            tl.to(
-              masterSurface.userData.rotGoal,
-              { y: "+=" + yawTurn, duration: 1 },
-              0
-            );
-            tl.to(
-              masterSurface.userData.rotGoal,
-              { x: "+=0.28", z: "-=0.22", duration: 0.5, ease: "sine.inOut" },
-              0
-            );
-            tl.to(
-              masterSurface.userData.rotGoal,
-              { x: "-=0.28", z: "+=0.22", duration: 0.5, ease: "sine.inOut" },
-              0.5
-            );
-
-            const beat = 1 / 5;
-            const moveDur = beat * 0.98;
-
-            // Movement animations — switch to Bezier (start → via → target)
-            for (let i = 0; i < 5; i++) {
-              moveAlongSmoothQuadratic(
-                i,
-                startPositions[i],
-                vias[i],
-                targets[i],
-                tl,
-                moveDur,
-                i * beat
-              );
+              onEnter:()=>{ if(!rafId) rafId=requestAnimationFrame(render); finalBlend=0; enableFinalMotion=false; },
+              onEnterBack:()=>{ if(!rafId) rafId=requestAnimationFrame(render); finalBlend=0; enableFinalMotion=false; },
+              onLeave:()=>{ enableFinalMotion=true; finalBlend=0; },
+              onLeaveBack:()=>{ enableFinalMotion=false; finalBlend=0; }
             }
+          });
 
-            // Bond growth animations
-            bonds.forEach((bond, i) => {
-              tl.to(
-                bond,
-                {
-                  growthGoal: 1,
-                  duration: beat * 0.9,
-                  ease: "power2.out",
-                  onStart: () => {
-                    bond.b.visible = true;
-                    bond.a.visible = false;
-                  },
-                  onComplete: () => {
-                    // Enable continuous motion when the last bond completes
-                    if (i === bonds.length - 1) {
-                      // Store final rotation state
-                      masterSurface.userData.finalRotation = {
-                        x: masterSurface.rotation.x,
-                        y: masterSurface.rotation.y,
-                        z: masterSurface.rotation.z,
-                      };
+          const fullTurn = Math.PI * 2;
+          tl.to(spinRig.userData, { yawGoal: `+=${fullTurn}`, duration: 1.0, ease: "none" }, 0);
 
-                      // Store base scales for breathing animation
-                      atoms.forEach((atom) => {
-                        atom.userData.baseScale = atom.scale.x;
-                      });
-                      center.userData.baseScale = center.scale.x;
-
-                      // Enable continuous motion
-                      isScrollComplete = true;
-                      isFlight = false;
-                    }
-                  },
-                },
-                i * beat + beat * 0.7
-              );
-            });
-          }
+          // keep x/z steady during the spin so start==end pose
         }
 
-        // Hide poster and update status
-        setTimeout(() => posterEl && posterEl.classList.add("hidden"), 150);
-        statusEl.textContent = "Bonds visible + section pinned";
-        setTimeout(() => statusEl.remove(), 700);
-      } catch (err) {
+        // Hide poster and status
+        setTimeout(()=>posterEl && posterEl.classList.add("hidden"),150);
+        statusEl.textContent="Spin-only ready"; setTimeout(()=>statusEl.remove(),600);
+
+      }catch(err){
         console.error("WebGL init failed:", err);
-        statusEl.textContent = "WebGL not supported. Showing poster.";
-        if (rafId) cancelAnimationFrame(rafId);
+        statusEl.textContent="WebGL not supported. Showing poster.";
+        if(rafId) cancelAnimationFrame(rafId);
       }
     </script>
+
     <script>
-      /*
-        Full-background linear-gradient animation mounted inside #hero.
-        Palette: #1c1a70 (deep indigo) ↔ #aecbff (soft blue)
-      */
-      (function () {
-        const TARGET = document.getElementById("hero"); // <-- mount here
-        if (!TARGET) return;
-
-        const cvs = document.createElement("canvas");
-        const ctx = cvs.getContext("2d", { alpha: false });
-        cvs.style.position = "absolute";
-        cvs.style.inset = "0";
-        cvs.style.zIndex = "-1";
-        cvs.style.pointerEvents = "none";
-        TARGET.style.position = "relative"; // ensure positioning context
-        TARGET.style.background = "transparent"; // let gradient show
+      // === Animated gradient BG (above bokeh; keep CSS fallback until first draw; pause on hidden)
+      (function(){
+        const TARGET=document.getElementById("hero"); if(!TARGET) return;
+        const cvs=document.createElement("canvas"); const ctx=cvs.getContext("2d",{alpha:false});
+        cvs.style.position="absolute"; cvs.style.inset="0"; cvs.style.zIndex="-1"; cvs.style.pointerEvents="none";
         TARGET.prepend(cvs);
-
-        const COLOR_A = "#031a30";
-        const COLOR_B = "#104068";
-        let w = 0,
-          h = 0;
-
-        function resize() {
-          w = TARGET.clientWidth;
-          h = TARGET.clientHeight;
-          cvs.width = w;
-          cvs.height = h;
-        }
-        resize();
-        window.addEventListener("resize", resize);
-
-        function lerpColor(a, b, t) {
-          const ar = parseInt(a.substr(1, 2), 16),
-            ag = parseInt(a.substr(3, 2), 16),
-            ab = parseInt(a.substr(5, 2), 16);
-          const br = parseInt(b.substr(1, 2), 16),
-            bg = parseInt(b.substr(3, 2), 16),
-            bb = parseInt(b.substr(5, 2), 16);
-          const r = Math.round(ar + (br - ar) * t);
-          const g = Math.round(ag + (bg - ag) * t);
-          const bl = Math.round(ab + (bb - ab) * t);
-          return `rgb(${r},${g},${bl})`;
-        }
-
-        function draw(t) {
-          const time = t * 0.003;
-          const angle = time * 0.05;
-          const cx = w / 2,
-            cy = h / 2;
-          const len = Math.sqrt(w * w + h * h) / 2;
-
-          const x0 = cx + Math.cos(angle) * len;
-          const y0 = cy + Math.sin(angle) * len;
-          const x1 = cx - Math.cos(angle) * len;
-          const y1 = cy - Math.sin(angle) * len;
-
-          const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+        let w=0,h=0, ready=false, running=true;
+        const COLOR_A="#031a30", COLOR_B="#104068";
+        function resize(){ w=TARGET.clientWidth; h=TARGET.clientHeight; cvs.width=w; cvs.height=h; }
+        function lerpColor(a,b,t){const ar=parseInt(a.substr(1,2),16),ag=parseInt(a.substr(3,2),16),ab=parseInt(a.substr(5,2),16);
+          const br=parseInt(b.substr(1,2),16),bg=parseInt(b.substr(3,2),16),bb=parseInt(b.substr(5,2),16);
+          const r=Math.round(ar+(br-ar)*t), g=Math.round(ag+(bg-ag)*t), bl=Math.round(ab+(bb-ab)*t); return `rgb(${r},${g},${bl})`; }
+        function draw(t){
+          const time=t*0.003, angle=time*0.05, cx=w/2, cy=h/2, len=Math.sqrt(w*w+h*h)/2;
+          const x0=cx+Math.cos(angle)*len, y0=cy+Math.sin(angle)*len, x1=cx-Math.cos(angle)*len, y1=cy-Math.sin(angle)*len;
+          const grad=ctx.createLinearGradient(x0,y0,x1,y1);
           grad.addColorStop(0, COLOR_A);
-          grad.addColorStop(
-            0.5 + 0.2 * Math.sin(time * 0.5),
-            lerpColor(COLOR_A, COLOR_B, 0.5)
-          );
+          grad.addColorStop(0.5+0.2*Math.sin(time*0.5), lerpColor(COLOR_A,COLOR_B,0.5));
           grad.addColorStop(1, COLOR_B);
-
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, w, h);
+          ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
+          if(!ready){ TARGET.style.background="transparent"; ready=true; }
         }
-
-        function loop(t) {
-          draw(t);
-          requestAnimationFrame(loop);
-        }
-        requestAnimationFrame(loop);
+        function loop(t){ if(!running){ requestAnimationFrame(loop); return; } draw(t); requestAnimationFrame(loop); }
+        resize(); requestAnimationFrame(loop); addEventListener("resize", resize);
+        document.addEventListener("visibilitychange", ()=>{running=!document.hidden;});
       })();
     </script>
   </body>
