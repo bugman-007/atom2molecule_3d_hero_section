@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <title>Chematek Hero — Spin-Only (Client Baseline)</title>
+    <title>Chematek Hero — Enhanced Interactive Version</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <style>
       *,*::before,*::after{box-sizing:border-box}
@@ -21,8 +21,13 @@
       .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.9) brightness(1.05)}
       .poster.hidden{display:none}
       .status{position:absolute;inset:auto 0 1rem 0;text-align:center;font-size:.9rem;opacity:.7;pointer-events:none}
-      .copy{position:absolute;max-width:44ch;line-height:1.1;letter-spacing:.02em;text-wrap:balance}
-      #copy1,#copy2{opacity:0;pointer-events:none}
+      .copy{
+        position:absolute;
+        left:8vw; top:18vh;               /* place the headline */
+        z-index:20;                       /* above overlay (overlay is z-index:10) */
+        max-width:44ch; line-height:1.1; letter-spacing:.02em; text-wrap:balance
+      }
+      #copy2{ top:calc(18vh + 3.2rem); }   /* subhead below headline */
       #after{min-height:200vh;display:grid;place-items:center;background:linear-gradient(180deg,#051c33 0%,#0b0a46 100%)}
     </style>
   </head>
@@ -30,14 +35,18 @@
     <section id="hero" aria-label="Hero 3D stage">
       <img class="poster" alt="Molecule hero poster"
         src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E" />
-      <div class="status" id="status">Spin-only baseline…</div>
+      <div class="status" id="status">Enhanced interactive version loading…</div>
       <div id="copy1" class="copy"></div>
       <div id="copy2" class="copy"></div>
+      <!-- Top-most overlay for soft transparent circles -->
+      <canvas id="fx-overlay" style="position:absolute;inset:0;pointer-events:none;z-index:10"></canvas>
     </section>
     <section id="after"><div>Scroll past the pinned hero to verify release behavior.</div></section>
 
     <script src="./assets/vendor/gsap.min.js"></script>
     <script src="./assets/vendor/ScrollTrigger.min.js"></script>
+    <!-- Tiny text splitter (open-source) -->
+    <script src="https://cdn.jsdelivr.net/npm/split-type@0.3.4/umd/index.min.js"></script>
     <script>if (window.gsap && window.ScrollTrigger){gsap.registerPlugin(ScrollTrigger);}</script>
 
     <script type="module">
@@ -183,8 +192,10 @@
         masterSurface.userData.rotGoal = {x:masterSurface.rotation.x, y:masterSurface.rotation.y, z:masterSurface.rotation.z};
         // --- Spin axis (NOT local Y). Use a diagonal so it's never colinear with any bond.
         const SPIN_AXIS = new THREE.Vector3(0.61, 0.51, 0.61).normalize();
-        // Yaw accumulator for the spin rig; GSAP animates this scalar.
-        spinRig.userData.yawGoal = 0;
+        // Separate channels: ScrollTrigger animates yawScroll; cursor contributes cursorYaw
+        spinRig.userData.yawScroll = 0;     // scroll-driven yaw
+        let cursorYaw = 0;                  // raw integrated cursor yaw
+        let cursorYawFiltered = 0;          // low-pass filtered cursor yaw
         const _spinQuatTarget = new THREE.Quaternion();
         const _spinQuatCurrent = new THREE.Quaternion(); // current rig quat snapshot
 
@@ -192,8 +203,8 @@
         center = new THREE.Mesh(atomGeo, atomMat); center.position.set(0,0,0); center.scale.setScalar(1); center.userData.baseScale=center.scale.x;
         centerGroup.add(center); center.renderOrder=0;
 
-        // Target positions (final bonded layout)
-        const R = CONFIG.TARGET_RADIUS;
+        // Target positions (final bonded layout) - smaller molecule
+        const R = CONFIG.TARGET_RADIUS * 0.8; // smaller molecule
         const targets = [
           new THREE.Vector3(0,0,R),
           new THREE.Vector3(0,0,-R),
@@ -235,14 +246,12 @@
           tmp.cl.copy(tmp.cw); molecule.worldToLocal(tmp.cl);
           tmp.ol.copy(tmp.ow); molecule.worldToLocal(tmp.ol);
           tmp.dir.subVectors(tmp.ol,tmp.cl);
-          const centerDist = tmp.dir.length(); if (centerDist <= overlap*2) { pair.b.visible=false; return; }
+          const centerDist = tmp.dir.length();
           const len = Math.max(0, centerDist - overlap*2);
           tmp.dirN.copy(tmp.dir).normalize();
-          // NEW: hide when too short OR when growth is ~0
-          if (centerDist <= overlap*2 || pair.growth <= 1e-4) { pair.b.visible = false; return; }
-          // NEW: scale length by growth (0→1)
+          if (centerDist <= overlap*2 || pair.growth <= 1e-4) { pair.b.visible=false; return; }
           const scaledLen = len * pair.growth;
-          if (scaledLen <= 1e-6) { pair.b.visible = false; return; }
+          if (scaledLen <= 1e-6) { pair.b.visible=false; return; }
           pair.b.visible = true;
           // Position stays anchored at the outer atom side; growth extends inward
           pair.b.position.copy(tmp.ol).add(tmp.dirN.clone().multiplyScalar(-overlap));
@@ -254,6 +263,29 @@
         // Render loop (no pre-flight; idle breathing after release only)
         let time=0, finalBlend=0, enableFinalMotion=false, isFinalized=false;
         const clock = new THREE.Clock();
+        
+        // Cursor → spin inertia
+        let userSpinVel = 0;                  // radians/sec from pointer
+        const sens = 0.001;                  // lower sensitivity → more “laggy” feel
+        const friction = 2.8;                 // moderate decay (keeps motion smooth)
+        const cursorLagLam = 0.6;              // low-pass lag for cursor-only channel
+        let lastMoveTS = 0, lastX = null;
+        function onPointerMove(e){
+          const x = e.clientX;
+          const ts = performance.now();
+          if (lastX != null){
+            const dtm = Math.max(1, ts - lastMoveTS) / 1000;
+            const dx = x - lastX;
+            const impulse = (dx * sens) / dtm;
+            userSpinVel += impulse;
+            // clamp to avoid absurd spins
+            userSpinVel = Math.max(-3.0, Math.min(3.0, userSpinVel));
+          }
+          lastX = x; lastMoveTS = ts;
+        }
+        heroEl.addEventListener('pointermove', onPointerMove, { passive: true });
+        heroEl.addEventListener('pointerleave', ()=>{ lastX = null; }, { passive: true });
+        
         function damp(cur,tgt,dt,lam){const k=1-Math.exp(-lam*dt);return cur+(tgt-cur)*k;}
         function render(){
           const dt=clock.getDelta(); time+=0.008;
@@ -263,11 +295,24 @@
           masterSurface.rotation.y = damp(masterSurface.rotation.y, g.y, dt, 1.8);
           masterSurface.rotation.z = damp(masterSurface.rotation.z, g.z, dt, 1.8);
 
+          // Cursor inertia: integrate velocity into cursor yaw, apply friction
+          if (Math.abs(userSpinVel) > 1e-4){
+            cursorYaw += userSpinVel * dt;                          // integrate to yaw
+            userSpinVel *= Math.exp(-friction * dt);                // decay velocity
+            if (Math.abs(userSpinVel) < 1e-3) userSpinVel = 0;
+          }
+          // apply extra cursor-only lag
+          cursorYawFiltered = (function lp(cur, tgt, dt, lam){
+            const k = 1 - Math.exp(-lam * dt);
+            return cur + (tgt - cur) * k;
+          })(cursorYawFiltered, cursorYaw, dt, cursorLagLam);
+
           // Apply spin around fixed world axis via quaternion
-          _spinQuatTarget.setFromAxisAngle(SPIN_AXIS, spinRig.userData.yawGoal);
+          const yawTarget = spinRig.userData.yawScroll + cursorYawFiltered;
+          _spinQuatTarget.setFromAxisAngle(SPIN_AXIS, yawTarget);
           _spinQuatCurrent.copy(spinRig.quaternion);
-          // critically-damped slerp toward target for smoothness
-          spinRig.quaternion.slerp(_spinQuatTarget, Math.min(1, dt * 6.0));
+          // faster slerp → less scroll lag (cursor lag handled above)
+          spinRig.quaternion.slerp(_spinQuatTarget, Math.min(1, dt * 12.0));
 
           if (enableFinalMotion || finalBlend>0){
             const mix = enableFinalMotion?1:finalBlend;
@@ -303,7 +348,7 @@
           const tl = gsap.timeline({
             defaults:{ease:"none"},
             scrollTrigger:{
-              trigger:heroEl, start:"top top", end:"+=120%", scrub:1, pin:true, anticipatePin:1,
+              trigger:heroEl, start:"top top", end:"+=120%", scrub:1.2, pin:true, anticipatePin:1,
               onUpdate:self=>{
                 if (!isFinalized && self.progress>=0.999){
                   // capture state; idle motion after unpin
@@ -325,11 +370,20 @@
           const rot1Dur = 0.5;   // atoms-only rotation
           const rot2Dur = 0.5;   // rotation with bond growth
 
-          // Ensure bonds are hidden & growth=0 for rotation #1
-          tl.call(() => { bonds.forEach(b => { b.growth = 0; }); }, [], 0.0);
+          // Atoms: subtle appear (scale-in) at the very beginning
+          atoms.forEach((a)=>{ const b=a.userData.baseScale; a.scale.setScalar(b*0.75); });
+          gsap.to(atoms.map(a=>a.scale), {
+            x: i => atoms[i].userData.baseScale,
+            y: i => atoms[i].userData.baseScale,
+            z: i => atoms[i].userData.baseScale,
+            duration: 0.18,
+            ease: "power2.out",
+            stagger: { each: 0.015, from: "center" }
+          }, 0.0);
 
           // Rotation #1 (atoms only)
-          tl.to(spinRig.userData, { yawGoal: `+=${fullTurn}`, duration: rot1Dur, ease: "none" }, 0.0);
+          tl.call(() => { bonds.forEach(b => { b.growth = 0; }); }, [], 0.0);
+          tl.to(spinRig.userData, { yawScroll: `+=${fullTurn}`, duration: rot1Dur, ease: "none" }, 0.0);
 
           // Kick off bond growth exactly at the boundary between #1 and #2
           // Each bond animates growth 0→1 over the full second rotation (no extra easing on the spin)
@@ -338,13 +392,133 @@
           });
 
           // Rotation #2 (identical spin, bonds now growing)
-          tl.to(spinRig.userData, { yawGoal: `+=${fullTurn}`, duration: rot2Dur, ease: "none" }, rot1Dur);
+          tl.to(spinRig.userData, { yawScroll: `+=${fullTurn}`, duration: rot2Dur, ease: "none" }, rot1Dur);
           // keep x/z steady during the spin so start==end pose
+        }
+
+        // === Text animation (SplitType UMD) — guarded so CDN issues won't break WebGL
+        (function initTextAnim(){
+          if (!window.SplitType || !window.gsap) {
+            console.warn("SplitType not available; skipping text animation");
+            gsap.set(["#copy1", "#copy2"], { opacity: 1, yPercent: 0 });
+            return;
+          }
+          const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          const headlineEl = document.getElementById('copy1');
+          const subheadEl  = document.getElementById('copy2');
+          if (headlineEl) headlineEl.textContent = headlineEl.textContent || "Chematek engineered clarity";
+          if (subheadEl)  subheadEl.textContent  = subheadEl.textContent  || "Industrial chemistries, simplified.";
+          gsap.set([headlineEl, subheadEl], { opacity: 1 });
+          const splitHead = new window.SplitType('#copy1', { types: 'words, chars' });
+          const splitSub  = new window.SplitType('#copy2', { types: 'words' });
+          gsap.set([splitHead.chars, splitSub.words], { opacity: 0, yPercent: 20, willChange: 'transform,opacity' });
+          const tlText = gsap.timeline({
+            defaults: { ease: 'power2.out' },
+            scrollTrigger: { trigger: heroEl, start: 'top top', toggleActions: 'play none none reverse', pin: false }
+          });
+          if (prefersReduced) {
+            tlText.to(splitHead.chars, { opacity: 1, yPercent: 0, duration: 0.2, stagger: 0.006 }, 0.05)
+                  .to(splitSub.words,  { opacity: 1, yPercent: 0, duration: 0.2, stagger: 0.02  }, 0.18);
+          } else {
+            tlText.to(splitHead.chars, { opacity: 1, yPercent: 0, duration: 0.34, stagger: { each: 0.01, from: 'random' } }, 0.05)
+                  .to(splitSub.words,  { opacity: 1, yPercent: 0, duration: 0.28, stagger: { each: 0.012, from: 0 } }, 0.22);
+          }
+        })();
+
+        // === FX overlay: soft transparent circles near atoms ===
+        const fxCanvas = document.getElementById('fx-overlay');
+        const fxCtx = fxCanvas.getContext('2d');
+        let fxW = 0, fxH = 0, fxDPR = 1, fxRunning = true;
+        function fxResize(){
+          fxDPR = Math.min(window.devicePixelRatio||1, 2);
+          fxW = Math.max(1, heroEl.clientWidth);
+          fxH = Math.max(1, heroEl.clientHeight);
+          fxCanvas.width = Math.floor(fxW * fxDPR);
+          fxCanvas.height = Math.floor(fxH * fxDPR);
+          fxCanvas.style.width = fxW + 'px';
+          fxCanvas.style.height = fxH + 'px';
+          fxCtx.setTransform(fxDPR,0,0,fxDPR,0,0);
+        }
+        fxResize(); addEventListener('resize', fxResize);
+
+        // Project world → screen coords in overlay space
+        const _proj = new THREE.Vector3();
+        function worldToScreen(v3){
+          _proj.copy(v3).project(camera);
+          const x = ( _proj.x * 0.5 + 0.5) * fxW;
+          const y = (-_proj.y * 0.5 + 0.5) * fxH;
+          return { x, y, onScreen: (_proj.z > -1 && _proj.z < 1) };
+        }
+        // Soft circle blips
+        const blips = []; // {x,y,r,alpha,life,fadeIn,fadeOut}
+        function spawnBlip(){
+          if (atoms.length === 0) return;
+          // bias spawn near a random atom (looks more intentional)
+          const i = (Math.random()*atoms.length)|0;
+          const p = new THREE.Vector3(); atoms[i].getWorldPosition(p);
+          const s = worldToScreen(p);
+          if (!s.onScreen) return;
+          const jitter = Math.min(fxW,fxH) * 0.03;
+          const x = s.x + (Math.random()*2-1) * jitter;
+          const y = s.y + (Math.random()*2-1) * jitter;
+          const r = Math.min(fxW,fxH) * (0.012 + Math.random()*0.04); // different sizes
+          blips.push({
+            x, y, r,
+            alpha: 0,
+            life: 1,                 // normalized 1→0
+            fadeIn: 0.15 + Math.random()*0.2,
+            fadeOut: 0.4 + Math.random()*0.6
+          });
+        }
+        let fxLastTS = 0, blipTimer = 0;
+        function renderFX(ts){
+          if (!fxRunning){ requestAnimationFrame(renderFX); return; }
+          if (!fxLastTS) fxLastTS = ts;
+          const dt = (ts - fxLastTS)/1000; fxLastTS = ts;
+          blipTimer -= dt;
+          if (blipTimer <= 0){ spawnBlip(); blipTimer = 0.8 + Math.random()*1.6; }
+
+          fxCtx.clearRect(0,0,fxW,fxH);
+          // Draw blips
+          for (let i=blips.length-1;i>=0;i--){
+            const b = blips[i];
+            // update alpha and life
+            if (b.alpha < 1) b.alpha = Math.min(1, b.alpha + dt / b.fadeIn);
+            b.life -= dt / b.fadeOut;
+            if (b.life <= 0){ blips.splice(i,1); continue; }
+            const a = b.alpha * Math.max(0, Math.min(1, b.life));
+            fxCtx.save();
+            fxCtx.globalAlpha = a * 0.35; // little transparent circles
+            // soft fill
+            fxCtx.fillStyle = 'rgba(255,220,160,1)';
+            fxCtx.beginPath();
+            fxCtx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+            fxCtx.fill();
+            // subtle outline
+            fxCtx.globalAlpha = a * 0.6;
+            fxCtx.lineWidth = 1;
+            fxCtx.strokeStyle = 'rgba(255,230,190,1)';
+            fxCtx.stroke();
+            fxCtx.restore();
+          }
+
+          requestAnimationFrame(renderFX);
+        }
+        requestAnimationFrame(renderFX);
+        document.addEventListener('visibilitychange', ()=>{ fxRunning = !document.hidden; });
+        if (window.ScrollTrigger){
+          ScrollTrigger.create({
+            trigger: heroEl, start: 'top top', end: 'bottom top',
+            onEnter: ()=> fxRunning = true,
+            onEnterBack: ()=> fxRunning = true,
+            onLeave: ()=> fxRunning = true,
+            onLeaveBack: ()=> fxRunning = true
+          });
         }
 
         // Hide poster and status
         setTimeout(()=>posterEl && posterEl.classList.add("hidden"),150);
-        statusEl.textContent="Spin-only ready"; setTimeout(()=>statusEl.remove(),600);
+        statusEl.textContent="Enhanced interactive version ready"; setTimeout(()=>statusEl.remove(),600);
 
       }catch(err){
         console.error("WebGL init failed:", err);
