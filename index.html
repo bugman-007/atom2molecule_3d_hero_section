@@ -214,8 +214,12 @@
         // Bonds — fully visible from frame 0 (no growth)
         function createCenterBond(outerIdx){
           const bHalf = new THREE.Mesh(halfGeo, bondMat);
-          bHalf.visible = true; molecule.add(bHalf); bHalf.renderOrder=1;
-          const pair={a:null,b:bHalf,outerIdx,growth:1,growthGoal:1}; bonds.push(pair); return pair;
+          bHalf.visible = false;            // hidden at start
+          molecule.add(bHalf);
+          bHalf.renderOrder = 1;
+          const pair = { a:null, b:bHalf, outerIdx, growth:0, growthGoal:0 };
+          bonds.push(pair);
+          return pair;
         }
         for(let i=0;i<5;i++) createCenterBond(i);
 
@@ -234,11 +238,17 @@
           const centerDist = tmp.dir.length(); if (centerDist <= overlap*2) { pair.b.visible=false; return; }
           const len = Math.max(0, centerDist - overlap*2);
           tmp.dirN.copy(tmp.dir).normalize();
-          pair.b.visible=true;
+          // NEW: hide when too short OR when growth is ~0
+          if (centerDist <= overlap*2 || pair.growth <= 1e-4) { pair.b.visible = false; return; }
+          // NEW: scale length by growth (0→1)
+          const scaledLen = len * pair.growth;
+          if (scaledLen <= 1e-6) { pair.b.visible = false; return; }
+          pair.b.visible = true;
+          // Position stays anchored at the outer atom side; growth extends inward
           pair.b.position.copy(tmp.ol).add(tmp.dirN.clone().multiplyScalar(-overlap));
           tmp.neg.copy(tmp.dirN).multiplyScalar(-1);
           pair.b.quaternion.setFromUnitVectors(UP, tmp.neg);
-          pair.b.scale.set(1, len, 1);
+          pair.b.scale.set(1, scaledLen, 1);
         }
 
         // Render loop (no pre-flight; idle breathing after release only)
@@ -311,10 +321,24 @@
               onLeaveBack:()=>{ enableFinalMotion=false; finalBlend=0; }
             }
           });
-
           const fullTurn = Math.PI * 2;
-          tl.to(spinRig.userData, { yawGoal: `+=${fullTurn}`, duration: 1.0, ease: "none" }, 0);
+          const rot1Dur = 0.5;   // atoms-only rotation
+          const rot2Dur = 0.5;   // rotation with bond growth
 
+          // Ensure bonds are hidden & growth=0 for rotation #1
+          tl.call(() => { bonds.forEach(b => { b.growth = 0; }); }, [], 0.0);
+
+          // Rotation #1 (atoms only)
+          tl.to(spinRig.userData, { yawGoal: `+=${fullTurn}`, duration: rot1Dur, ease: "none" }, 0.0);
+
+          // Kick off bond growth exactly at the boundary between #1 and #2
+          // Each bond animates growth 0→1 over the full second rotation (no extra easing on the spin)
+          bonds.forEach((bond) => {
+            tl.to(bond, { growth: 1, duration: rot2Dur, ease: "power2.out" }, rot1Dur);
+          });
+
+          // Rotation #2 (identical spin, bonds now growing)
+          tl.to(spinRig.userData, { yawGoal: `+=${fullTurn}`, duration: rot2Dur, ease: "none" }, rot1Dur);
           // keep x/z steady during the spin so start==end pose
         }
 
