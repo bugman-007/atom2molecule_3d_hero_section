@@ -247,6 +247,18 @@
         }
         for(let i=0;i<5;i++) createCenterBond(i);
 
+        // --- Graph routes (edges) the stars can travel along
+        // Index -1 = center, 0..atoms.length-1 = outer atoms
+        const routes = [];
+        // center-to-each
+        for (let i=0;i<atoms.length;i++) routes.push({a:-1,b:i});
+        // all unique outer-outer pairs (light network)
+        for (let i=0;i<atoms.length;i++){
+          for (let j=i+1;j<atoms.length;j++){
+            routes.push({a:i,b:j});
+          }
+        }
+
         // Bond positioning (straight, extend into atoms)
         const UP = new THREE.Vector3(0,1,0), tmp = {
           cw:new THREE.Vector3(), ow:new THREE.Vector3(),
@@ -420,7 +432,7 @@
           // keep x/z steady during the spin so start==end pose
         }
 
-        // === Text animation (SplitType UMD) — guarded so CDN issues won't break WebGL
+        // === Text animation (SplitType UMD) — reveal once (no ScrollTrigger)
         (function initTextAnim(){
           if (!window.SplitType || !window.gsap) {
             console.warn("SplitType not available; skipping text animation");
@@ -435,14 +447,12 @@
             "/ IN THE PURSUIT OF PROGRESS";
           if (subheadEl)  subheadEl.textContent  = subheadEl.textContent  ||
             "Chematek is an industrial technology company that offers products, services, and solutions for chemicals, lubricants and engineering, procurement, and construction.";
-          gsap.set([headlineEl, subheadEl], { opacity: 1 });
+          // Make containers visible; we animate inner words
+          gsap.set([headlineEl, subheadEl], { opacity: 1, clearProps: "filter" });
           const splitHead = new window.SplitType('#copy1', { types: 'words' });
           const splitSub  = new window.SplitType('#copy2', { types: 'words' });
           gsap.set([splitHead.words, splitSub.words], { opacity: 0, yPercent: 20, willChange: 'transform,opacity' });
-          const tlText = gsap.timeline({
-            defaults: { ease: 'power2.out' },
-            scrollTrigger: { trigger: heroEl, start: 'top top', toggleActions: 'play none none reverse' }
-          });
+          const tlText = gsap.timeline({ defaults: { ease: 'power2.out' } }); // play immediately
           if (prefersReduced) {
             tlText.to(splitHead.words, { opacity: 1, yPercent: 0, duration: 0.24, stagger: 0.02 }, 0.05)
                   .to(splitSub.words,  { opacity: 1, yPercent: 0, duration: 0.2, stagger: 0.02  }, 0.18);
@@ -450,6 +460,7 @@
             tlText.to(splitHead.words, { opacity: 1, yPercent: 0, duration: 0.36, stagger: { each: 0.018, from: 0 } }, 0.05)
                   .to(splitSub.words,  { opacity: 1, yPercent: 0, duration: 0.28, stagger: { each: 0.012, from: 0 } }, 0.22);
           }
+          tlText.play(0); // ensure it runs even if ScrollTrigger is busy
         })();
 
         // === FX overlay: shooting stars from atom center to atom center ===
@@ -482,21 +493,20 @@
           else atoms[idx].getWorldPosition(out);
         }
 
-        // Star objects: from index to index, head moves 0→1; tail stays attached to origin atom
+        // Stars: move along a chosen route; tail stays at origin
         const stars = []; // {a,b,t,spd,tail,width}
-        function pickIndex(){
-          // sometimes use center
-          return Math.random() < 0.35 ? -1 : ((Math.random()*atoms.length)|0);
-        }
         function spawnStar(){
-          if (!atoms.length) return;
-          let a = pickIndex(), b = pickIndex();
-          if (a === b) b = (b === -1) ? 0 : (b+1) % atoms.length;
+          if (!routes.length) return;
+          const e = routes[(Math.random()*routes.length)|0];
+          // random direction along this route
+          const dir = Math.random() < 0.5 ? 1 : -1;
+          const a = dir>0 ? e.a : e.b;
+          const b = dir>0 ? e.b : e.a;
           stars.push({
             a, b, t: 0,
-            spd: 0.35 + Math.random()*0.9,         // speed along path
-            tail: 0.18 + Math.random()*0.22,       // tail length as fraction of path
-            width: 1 + Math.random()*1.2           // line width
+            spd: 0.35 + Math.random()*0.9,         // head speed
+            tail: 0.2 + Math.random()*0.22,        // tail fraction of route
+            width: 1 + Math.random()*1.2
           });
         }
         let fxLastTS = 0, spawnTimer = 0;
@@ -513,6 +523,21 @@
           }
 
           fxCtx.clearRect(0,0,fxW,fxH);
+
+          // --- draw faint routes (center-to-outer + outer-to-outer)
+          fxCtx.save();
+          fxCtx.globalAlpha = 0.15;
+          fxCtx.lineWidth = 0.6;
+          fxCtx.strokeStyle = 'rgba(255,255,255,0.7)';
+          const aW = new THREE.Vector3(), bW = new THREE.Vector3();
+          for (const e of routes){
+            getWorldByIndex(e.a, aW); getWorldByIndex(e.b, bW);
+            const a2 = worldToScreen(aW), b2 = worldToScreen(bW);
+            if (!a2.onScreen || !b2.onScreen) continue;
+            fxCtx.beginPath(); fxCtx.moveTo(a2.x, a2.y); fxCtx.lineTo(b2.x, b2.y); fxCtx.stroke();
+          }
+          fxCtx.restore();
+
           fxCtx.globalCompositeOperation = 'lighter';
           // Draw & update stars
           const aw = new THREE.Vector3(), bw = new THREE.Vector3();
