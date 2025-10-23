@@ -22,12 +22,23 @@
       .poster.hidden{display:none}
       .status{position:absolute;inset:auto 0 1rem 0;text-align:center;font-size:.9rem;opacity:.7;pointer-events:none}
       .copy{
-        position:absolute;
-        left:8vw; top:18vh;               /* place the headline */
-        z-index:20;                       /* above overlay (overlay is z-index:10) */
-        max-width:44ch; line-height:1.1; letter-spacing:.02em; text-wrap:balance
+        position:absolute; z-index:20; color:#e8eef6;
+        max-width:44ch; line-height:1.1; letter-spacing:.02em; text-wrap:balance;
       }
-      #copy2{ top:calc(18vh + 3.2rem); }   /* subhead below headline */
+      /* copy1 = headline (top-left) */
+      #copy1{
+        left:6vw; top:10vh;
+        font-weight:700; text-transform:uppercase;
+        font-size:clamp(24px, 4.6vw, 64px);
+        max-width:18ch;
+      }
+      /* copy2 = paragraph (right-middle) */
+      #copy2{
+        right:8vw; top:52vh; left:auto;
+        font-weight:400;
+        font-size:clamp(14px, 1.4vw, 18px);
+        max-width:42ch; line-height:1.35;
+      }
       #after{min-height:200vh;display:grid;place-items:center;background:linear-gradient(180deg,#051c33 0%,#0b0a46 100%)}
     </style>
   </head>
@@ -36,8 +47,8 @@
       <img class="poster" alt="Molecule hero poster"
         src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E" />
       <div class="status" id="status">Enhanced interactive version loading…</div>
-      <div id="copy1" class="copy"></div>
-      <div id="copy2" class="copy"></div>
+      <div id="copy1"></div>
+      <div id="copy2"></div>
       <!-- Top-most overlay for soft transparent circles -->
       <canvas id="fx-overlay" style="position:absolute;inset:0;pointer-events:none;z-index:10"></canvas>
     </section>
@@ -193,7 +204,9 @@
         // --- Spin axis (NOT local Y). Use a diagonal so it's never colinear with any bond.
         const SPIN_AXIS = new THREE.Vector3(0.61, 0.51, 0.61).normalize();
         // Separate channels: ScrollTrigger animates yawScroll; cursor contributes cursorYaw
-        spinRig.userData.yawScroll = 0;     // scroll-driven yaw
+        spinRig.userData.yawScroll = 0;     // raw scroll yaw (animated by GSAP)
+        let yawScrollFiltered = 0;          // low-pass filtered scroll yaw
+        const scrollLagLam = 0.5;           // ↓ lam ⇒ more lag on scroll
         let cursorYaw = 0;                  // raw integrated cursor yaw
         let cursorYawFiltered = 0;          // low-pass filtered cursor yaw
         const _spinQuatTarget = new THREE.Quaternion();
@@ -203,8 +216,8 @@
         center = new THREE.Mesh(atomGeo, atomMat); center.position.set(0,0,0); center.scale.setScalar(1); center.userData.baseScale=center.scale.x;
         centerGroup.add(center); center.renderOrder=0;
 
-        // Target positions (final bonded layout) - smaller molecule
-        const R = CONFIG.TARGET_RADIUS * 0.8; // smaller molecule
+        // Target positions (final bonded layout)
+        const R = CONFIG.TARGET_RADIUS * 0.8;
         const targets = [
           new THREE.Vector3(0,0,R),
           new THREE.Vector3(0,0,-R),
@@ -266,7 +279,7 @@
         
         // Cursor → spin inertia
         let userSpinVel = 0;                  // radians/sec from pointer
-        const sens = 0.001;                  // lower sensitivity → more “laggy” feel
+        const sens = 0.001;                  // lower sensitivity → more "laggy" feel
         const friction = 2.8;                 // moderate decay (keeps motion smooth)
         const cursorLagLam = 0.6;              // low-pass lag for cursor-only channel
         let lastMoveTS = 0, lastX = null;
@@ -306,9 +319,14 @@
             const k = 1 - Math.exp(-lam * dt);
             return cur + (tgt - cur) * k;
           })(cursorYawFiltered, cursorYaw, dt, cursorLagLam);
+          // add lag only to the scroll channel
+          yawScrollFiltered = (function lp(cur, tgt, dt, lam){
+            const k = 1 - Math.exp(-lam * dt);
+            return cur + (tgt - cur) * k;
+          })(yawScrollFiltered, spinRig.userData.yawScroll, dt, scrollLagLam);
 
           // Apply spin around fixed world axis via quaternion
-          const yawTarget = spinRig.userData.yawScroll + cursorYawFiltered;
+          const yawTarget = yawScrollFiltered + cursorYawFiltered;
           _spinQuatTarget.setFromAxisAngle(SPIN_AXIS, yawTarget);
           _spinQuatCurrent.copy(spinRig.quaternion);
           // faster slerp → less scroll lag (cursor lag handled above)
@@ -330,6 +348,10 @@
         }
         rafId=requestAnimationFrame(render);
 
+        function applyMoleculeScale(){
+          const s = Math.max(0.55, Math.min(0.9, (heroEl.clientHeight / 1000) * 0.8));
+          molecule.scale.setScalar(s);
+        }
         // Resize
         function onResize(){
           const rect=heroEl.getBoundingClientRect(); const w=Math.max(1,rect.width|0); const h=Math.max(1,rect.height|0);
@@ -337,10 +359,12 @@
           const nextDpr=Math.min(window.devicePixelRatio||1,dprCap);
           if (renderer.getPixelRatio()!==nextDpr) renderer.setPixelRatio(nextDpr);
           camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false); updateCameraForViewport();
+          applyMoleculeScale();
           if (window.ScrollTrigger) ScrollTrigger.refresh();
         }
         addEventListener("resize", onResize, {passive:true}); addEventListener("orientationchange", onResize);
         addEventListener("pageshow", e=>{if(e.persisted) onResize();},{passive:true}); onResize();
+        applyMoleculeScale();
 
         // === Spin-only GSAP timeline (exactly one 360°; ease:none)
         if (window.gsap && window.ScrollTrigger){
@@ -406,26 +430,29 @@
           const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
           const headlineEl = document.getElementById('copy1');
           const subheadEl  = document.getElementById('copy2');
-          if (headlineEl) headlineEl.textContent = headlineEl.textContent || "Chematek engineered clarity";
-          if (subheadEl)  subheadEl.textContent  = subheadEl.textContent  || "Industrial chemistries, simplified.";
+          // Placeholders matching comps – replace with final copy when provided
+          if (headlineEl) headlineEl.textContent = headlineEl.textContent ||
+            "/ IN THE PURSUIT OF PROGRESS";
+          if (subheadEl)  subheadEl.textContent  = subheadEl.textContent  ||
+            "Chematek is an industrial technology company that offers products, services, and solutions for chemicals, lubricants and engineering, procurement, and construction.";
           gsap.set([headlineEl, subheadEl], { opacity: 1 });
-          const splitHead = new window.SplitType('#copy1', { types: 'words, chars' });
+          const splitHead = new window.SplitType('#copy1', { types: 'words' });
           const splitSub  = new window.SplitType('#copy2', { types: 'words' });
-          gsap.set([splitHead.chars, splitSub.words], { opacity: 0, yPercent: 20, willChange: 'transform,opacity' });
+          gsap.set([splitHead.words, splitSub.words], { opacity: 0, yPercent: 20, willChange: 'transform,opacity' });
           const tlText = gsap.timeline({
             defaults: { ease: 'power2.out' },
-            scrollTrigger: { trigger: heroEl, start: 'top top', toggleActions: 'play none none reverse', pin: false }
+            scrollTrigger: { trigger: heroEl, start: 'top top', toggleActions: 'play none none reverse' }
           });
           if (prefersReduced) {
-            tlText.to(splitHead.chars, { opacity: 1, yPercent: 0, duration: 0.2, stagger: 0.006 }, 0.05)
+            tlText.to(splitHead.words, { opacity: 1, yPercent: 0, duration: 0.24, stagger: 0.02 }, 0.05)
                   .to(splitSub.words,  { opacity: 1, yPercent: 0, duration: 0.2, stagger: 0.02  }, 0.18);
           } else {
-            tlText.to(splitHead.chars, { opacity: 1, yPercent: 0, duration: 0.34, stagger: { each: 0.01, from: 'random' } }, 0.05)
+            tlText.to(splitHead.words, { opacity: 1, yPercent: 0, duration: 0.36, stagger: { each: 0.018, from: 0 } }, 0.05)
                   .to(splitSub.words,  { opacity: 1, yPercent: 0, duration: 0.28, stagger: { each: 0.012, from: 0 } }, 0.22);
           }
         })();
 
-        // === FX overlay: soft transparent circles near atoms ===
+        // === FX overlay: shooting stars from atom center to atom center ===
         const fxCanvas = document.getElementById('fx-overlay');
         const fxCtx = fxCanvas.getContext('2d');
         let fxW = 0, fxH = 0, fxDPR = 1, fxRunning = true;
@@ -449,58 +476,73 @@
           const y = (-_proj.y * 0.5 + 0.5) * fxH;
           return { x, y, onScreen: (_proj.z > -1 && _proj.z < 1) };
         }
-        // Soft circle blips
-        const blips = []; // {x,y,r,alpha,life,fadeIn,fadeOut}
-        function spawnBlip(){
-          if (atoms.length === 0) return;
-          // bias spawn near a random atom (looks more intentional)
-          const i = (Math.random()*atoms.length)|0;
-          const p = new THREE.Vector3(); atoms[i].getWorldPosition(p);
-          const s = worldToScreen(p);
-          if (!s.onScreen) return;
-          const jitter = Math.min(fxW,fxH) * 0.03;
-          const x = s.x + (Math.random()*2-1) * jitter;
-          const y = s.y + (Math.random()*2-1) * jitter;
-          const r = Math.min(fxW,fxH) * (0.012 + Math.random()*0.04); // different sizes
-          blips.push({
-            x, y, r,
-            alpha: 0,
-            life: 1,                 // normalized 1→0
-            fadeIn: 0.15 + Math.random()*0.2,
-            fadeOut: 0.4 + Math.random()*0.6
+        // Helpers to get world positions by logical index (-1=center, 0..atoms.length-1=outers)
+        function getWorldByIndex(idx, out){
+          if (idx === -1) center.getWorldPosition(out);
+          else atoms[idx].getWorldPosition(out);
+        }
+
+        // Star objects: from index to index, head moves 0→1; tail stays attached to origin atom
+        const stars = []; // {a,b,t,spd,tail,width}
+        function pickIndex(){
+          // sometimes use center
+          return Math.random() < 0.35 ? -1 : ((Math.random()*atoms.length)|0);
+        }
+        function spawnStar(){
+          if (!atoms.length) return;
+          let a = pickIndex(), b = pickIndex();
+          if (a === b) b = (b === -1) ? 0 : (b+1) % atoms.length;
+          stars.push({
+            a, b, t: 0,
+            spd: 0.35 + Math.random()*0.9,         // speed along path
+            tail: 0.18 + Math.random()*0.22,       // tail length as fraction of path
+            width: 1 + Math.random()*1.2           // line width
           });
         }
-        let fxLastTS = 0, blipTimer = 0;
+        let fxLastTS = 0, spawnTimer = 0;
         function renderFX(ts){
           if (!fxRunning){ requestAnimationFrame(renderFX); return; }
           if (!fxLastTS) fxLastTS = ts;
           const dt = (ts - fxLastTS)/1000; fxLastTS = ts;
-          blipTimer -= dt;
-          if (blipTimer <= 0){ spawnBlip(); blipTimer = 0.8 + Math.random()*1.6; }
+          // Sometimes none; sometimes 1–3 stars
+          spawnTimer -= dt;
+          if (spawnTimer <= 0){
+            const n = 1 + (Math.random()<0.35 ? (Math.random()<0.5?1:2) : 0);
+            for (let i=0;i<n;i++) spawnStar();
+            spawnTimer = 0.6 + Math.random()*1.8;
+          }
 
           fxCtx.clearRect(0,0,fxW,fxH);
-          // Draw blips
-          for (let i=blips.length-1;i>=0;i--){
-            const b = blips[i];
-            // update alpha and life
-            if (b.alpha < 1) b.alpha = Math.min(1, b.alpha + dt / b.fadeIn);
-            b.life -= dt / b.fadeOut;
-            if (b.life <= 0){ blips.splice(i,1); continue; }
-            const a = b.alpha * Math.max(0, Math.min(1, b.life));
-            fxCtx.save();
-            fxCtx.globalAlpha = a * 0.35; // little transparent circles
-            // soft fill
-            fxCtx.fillStyle = 'rgba(255,220,160,1)';
-            fxCtx.beginPath();
-            fxCtx.arc(b.x, b.y, b.r, 0, Math.PI*2);
-            fxCtx.fill();
-            // subtle outline
-            fxCtx.globalAlpha = a * 0.6;
-            fxCtx.lineWidth = 1;
-            fxCtx.strokeStyle = 'rgba(255,230,190,1)';
-            fxCtx.stroke();
-            fxCtx.restore();
+          fxCtx.globalCompositeOperation = 'lighter';
+          // Draw & update stars
+          const aw = new THREE.Vector3(), bw = new THREE.Vector3();
+          for (let i=stars.length-1;i>=0;i--){
+            const st = stars[i];
+            st.t += st.spd * dt;
+            if (st.t >= 1){ stars.splice(i,1); continue; }
+            // world positions
+            getWorldByIndex(st.a, aw);
+            getWorldByIndex(st.b, bw);
+            const a2 = worldToScreen(aw), b2 = worldToScreen(bw);
+            if (!a2.onScreen || !b2.onScreen) continue;
+            const lerp = (a,b,t)=>({ x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t });
+            const head = lerp(a2,b2,st.t);
+            const tailT = Math.max(0, st.t - st.tail);
+            const tail = lerp(a2,b2,tailT);   // tail always attached to origin atom
+            // gradient line tail→head
+            const g = fxCtx.createLinearGradient(tail.x, tail.y, head.x, head.y);
+            g.addColorStop(0.00, 'rgba(255,220,160,0.00)');
+            g.addColorStop(0.55, 'rgba(255,220,160,0.45)');
+            g.addColorStop(1.00, 'rgba(255,220,160,0.95)');
+            fxCtx.lineCap = 'round';
+            fxCtx.lineWidth = st.width;
+            fxCtx.strokeStyle = g;
+            fxCtx.beginPath(); fxCtx.moveTo(tail.x, tail.y); fxCtx.lineTo(head.x, head.y); fxCtx.stroke();
+            // small glowing head
+            fxCtx.beginPath(); fxCtx.fillStyle = 'rgba(255,230,190,0.95)';
+            fxCtx.arc(head.x, head.y, 1.2 + st.width*0.6, 0, Math.PI*2); fxCtx.fill();
           }
+          fxCtx.globalCompositeOperation = 'source-over';
 
           requestAnimationFrame(renderFX);
         }
