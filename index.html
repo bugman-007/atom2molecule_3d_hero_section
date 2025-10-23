@@ -851,11 +851,19 @@
               },
               0.42
             );
+            // copy1: split-text exit (per-char), then hide wrapper
             tl.to(
-              "#copy1",
-              { opacity: 0, y: -10, duration: 0.12, ease: "power1.out" },
-              0.78
+              splitHead.chars,
+              {
+                opacity: 0,
+                yPercent: -22, // fly upward; change to +22 for downward
+                duration: 0.2,
+                ease: "power2.in",
+                stagger: { each: 0.008, from: "random" }, // or "edges" if you want a wave-inward feel
+              },
+              0.76
             );
+            tl.set("#copy1", { autoAlpha: 0, pointerEvents: "none" }, ">");
 
             // copy2: word-by-word reveal
             tl.to(
