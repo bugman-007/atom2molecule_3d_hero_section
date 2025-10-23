@@ -837,46 +837,62 @@
             { yawScroll: `+=${fullTurn}`, duration: rot2Dur, ease: "none" },
             rot1Dur
           );
-          // --- Copy timeline (synced with the 2 rotations)
+          // --- Copy timeline (time-driven; triggered by scroll, not scrubbed)
           if (splitHead && splitSub) {
-            // copy1: random-char reveal, then fade out
-            tl.to(
+            const textTl = gsap.timeline({ paused: true });
+            // Ensure wrapper is interactable while animating forward/reverse
+            textTl.set("#copy1", { autoAlpha: 1, pointerEvents: "auto" }, 0);
+            // copy1: split-text entrance
+            textTl.to(
               splitHead.chars,
               {
                 opacity: 1,
                 yPercent: 0,
-                duration: 0.18,
+                duration: 0.75,
                 ease: "power2.out",
                 stagger: { each: 0.01, from: "random" },
               },
-              0.42
+              0
             );
-            // copy1: split-text exit (per-char), then hide wrapper
-            tl.to(
+            // copy1: split-text exit after a short hold
+            textTl.to(
               splitHead.chars,
               {
                 opacity: 0,
-                yPercent: -22, // fly upward; change to +22 for downward
-                duration: 0.2,
+                yPercent: -22,
+                duration: 0.35,
                 ease: "power2.in",
-                stagger: { each: 0.008, from: "random" }, // or "edges" if you want a wave-inward feel
+                stagger: { each: 0.008, from: "random" },
               },
-              0.76
+              "+=0.60"
             );
-            tl.set("#copy1", { autoAlpha: 0, pointerEvents: "none" }, ">");
-
+            textTl.set("#copy1", { autoAlpha: 0, pointerEvents: "none" });
             // copy2: word-by-word reveal
-            tl.to(
+            textTl.to(
               splitSub.words,
               {
                 opacity: 1,
                 yPercent: 0,
-                duration: 0.18,
+                duration: 0.25,
                 ease: "power2.out",
                 stagger: { each: 0.012, from: 0 },
               },
-              0.82
+              "+=0.10"
             );
+
+            // Scroll activates, timer animates:
+            ScrollTrigger.create({
+              trigger: heroEl,
+              start: "top top",
+              end: "+=120%",
+              // Option A (recommended default): reversible
+              onEnter: () => textTl.timeScale(1).restart(true),
+              onEnterBack: () => textTl.timeScale(1).restart(true),
+              onLeaveBack: () => textTl.timeScale(1).reverse(0),
+              // If you want one-shot instead, comment the 3 lines above and use:
+              // once: true,
+              // onEnter: () => textTl.restart(true),
+            });
           }
         }
 
