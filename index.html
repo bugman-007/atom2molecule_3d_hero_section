@@ -85,6 +85,20 @@
         line-height: 1;
         color: #e9eef6;
         letter-spacing: -0.02em;
+        text-wrap: initial;
+      }
+      /* three explicit lines */
+      #copy1 .line {
+        display: block;
+        white-space: nowrap;
+      }
+      /* tweak this to match the comp exactly; start with ~1ch */
+      #copy1 .line2,
+      #copy1 .line3 {
+        padding-left: 1.1ch;
+      }
+      #copy1 .accent {
+        color: #f89a5f;
       }
       /* copy2 = paragraph (right-middle) */
       #copy2 {
@@ -118,12 +132,14 @@
         Enhanced interactive version loading…
       </div>
       <div id="copy1" class="copy">
-        /&thinsp;IN THE<br />&nbsp; PURSUIT OF<br />
-        <span style="color: #f89a5f">&nbsp; PROGRESS</span>
+        <span class="line line1">/ IN THE</span>
+        <span class="line line2">PURSUIT OF</span>
+        <span class="line line3"><span class="accent">PROGRESS</span></span>
       </div>
       <div id="copy2" class="copy">
-        Chematek is an industrial technology company<br /> that offers products,
-        services, and solutions<br /> for chemicals, lubricants and engineering,<br />
+        Chematek is an industrial technology company<br />
+        that offers products, services, and solutions<br />
+        for chemicals, lubricants and engineering,<br />
         procurement, and construction.
       </div>
       <!-- Top-most overlay for soft transparent circles -->
@@ -178,7 +194,7 @@
         gsap.set(["#copy1", "#copy2"], { opacity: 1 });
 
         // Split like the sample (chars for headline; words for paragraph)
-        splitHead = new window.SplitType("#copy1", { types: "words, chars" });
+        splitHead = new window.SplitType('#copy1 .line', { types: 'chars' });
         splitSub = new window.SplitType("#copy2", { types: "words" });
 
         // initial state
