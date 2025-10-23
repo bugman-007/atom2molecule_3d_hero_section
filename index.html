@@ -9,6 +9,17 @@
     <meta name="color-scheme" content="light dark" />
     <title>Chematek Hero — Enhanced Interactive Version</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="/assets/fonts/ArchimotoV01-Regular.woff2"
+      crossorigin
+    />
     <style>
       *,
       *::before,
@@ -27,6 +38,13 @@
       }
       :root {
         --vh: 1vh;
+      }
+      @font-face {
+        font-family: "Archimoto V01 Regular";
+        src: url("/assets/fonts/ArchimotoV01-Regular.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
       }
       #hero {
         position: relative;
@@ -84,7 +102,8 @@
         font-size: clamp(40px, 6vw, 72px);
         line-height: 1;
         color: #e9eef6;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.015em;
+        font-variant-ligatures: none;
         text-wrap: initial;
       }
       /* three explicit lines */
@@ -104,10 +123,10 @@
       #copy2 {
         right: 10vw;
         top: 60vh;
-        font-family: "Space Grotesk Medium", system-ui, Arial, sans-serif;
-        font-weight: 500;
+        font-family: "Space Grotesk", system-ui, Arial, sans-serif;
+        font-weight: 400;
         font-size: clamp(16px, 1.6vw, 20px);
-        line-height: 2.25;
+        line-height: 1.25;
         color: #d9e3ef;
         opacity: 0;
         pointer-events: none;
@@ -186,15 +205,17 @@
         splitSub = null;
       (function prepText() {
         if (!window.SplitType || !window.gsap) {
-          console.warn("SplitType not available; static text fallback");
-          gsap.set(["#copy1", "#copy2"], { opacity: 1 });
+          console.warn("SplitType/GSAP missing; static copy fallback");
+          document
+            .querySelectorAll("#copy1,#copy2")
+            .forEach((el) => (el.style.opacity = "1"));
           return;
         }
         // make the containers visible; we'll animate the inner pieces later
         gsap.set(["#copy1", "#copy2"], { opacity: 1 });
 
         // Split like the sample (chars for headline; words for paragraph)
-        splitHead = new window.SplitType('#copy1 .line', { types: 'chars' });
+        splitHead = new window.SplitType("#copy1 .line", { types: "chars" });
         splitSub = new window.SplitType("#copy2", { types: "words" });
 
         // initial state
@@ -959,7 +980,7 @@
             getWorldByIndex(st.a, aw);
             getWorldByIndex(st.b, bw);
             const a2 = worldToScreen(aw),
-              b2 = worldToScreen(bW);
+              b2 = worldToScreen(bw);
             if (!a2.onScreen || !b2.onScreen) continue;
             const lerp = (a, b, t) => ({
               x: a.x + (b.x - a.x) * t,
