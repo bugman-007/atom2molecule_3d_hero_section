@@ -2,135 +2,300 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta name="color-scheme" content="light dark" />
     <title>Chematek Hero — Enhanced Interactive Version</title>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <style>
-      *,*::before,*::after{box-sizing:border-box}
-      html,body{height:100%;margin:0}
-      body{background:#0a2746;color:#e8eef6;font-family:system-ui,Arial,sans-serif}
-      :root{--vh:1vh}
-      #hero{
-        position:relative;width:100%;
-        height:100dvh;height:calc(var(--vh)*100);
-        overflow:hidden;overscroll-behavior:contain;
-        background:radial-gradient(120% 120% at 30% 20%,#0161ae 0%,#06223d 60%,#002c50 100%);
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
       }
-      #hero canvas{display:block;width:100%;height:100%}
-      .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.9) brightness(1.05)}
-      .poster.hidden{display:none}
-      .status{position:absolute;inset:auto 0 1rem 0;text-align:center;font-size:.9rem;opacity:.7;pointer-events:none}
-      .copy{
-        position:absolute; z-index:20; color:#e8eef6;
-        max-width:44ch; line-height:1.1; letter-spacing:.02em; text-wrap:balance;
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: #0a2746;
+        color: #e8eef6;
+        font-family: system-ui, Arial, sans-serif;
+      }
+      :root {
+        --vh: 1vh;
+      }
+      #hero {
+        position: relative;
+        width: 100%;
+        height: 100dvh;
+        height: calc(var(--vh) * 100);
+        overflow: hidden;
+        overscroll-behavior: contain;
+        background: radial-gradient(
+          120% 120% at 30% 20%,
+          #0161ae 0%,
+          #06223d 60%,
+          #002c50 100%
+        );
+      }
+      #hero canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .poster {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: saturate(0.9) brightness(1.05);
+      }
+      .poster.hidden {
+        display: none;
+      }
+      .status {
+        position: absolute;
+        inset: auto 0 1rem 0;
+        text-align: center;
+        font-size: 0.9rem;
+        opacity: 0.7;
+        pointer-events: none;
+      }
+      .copy {
+        position: absolute;
+        z-index: 20;
+        color: #e8eef6;
+        max-width: 44ch;
+        line-height: 1.1;
+        letter-spacing: 0.02em;
+        text-wrap: balance;
       }
       /* copy1 = headline (top-left) */
-      #copy1{
-        left:6vw; top:10vh;
-        font-weight:700; text-transform:uppercase;
-        font-size:clamp(24px, 4.6vw, 64px);
-        max-width:18ch;
+      #copy1 {
+        left: 6vw;
+        top: 10vh;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: clamp(24px, 4.6vw, 64px);
+        max-width: 18ch;
       }
       /* copy2 = paragraph (right-middle) */
-      #copy2{
-        right:8vw; top:52vh; left:auto;
-        font-weight:400;
-        font-size:clamp(14px, 1.4vw, 18px);
-        max-width:42ch; line-height:1.35;
+      #copy2 {
+        right: 8vw;
+        top: 52vh;
+        left: auto;
+        font-weight: 400;
+        font-size: clamp(14px, 1.4vw, 18px);
+        max-width: 42ch;
+        line-height: 1.35;
       }
-      #after{min-height:200vh;display:grid;place-items:center;background:linear-gradient(180deg,#051c33 0%,#0b0a46 100%)}
+      #after {
+        min-height: 200vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, #051c33 0%, #0b0a46 100%);
+      }
     </style>
   </head>
   <body>
     <section id="hero" aria-label="Hero 3D stage">
-      <img class="poster" alt="Molecule hero poster"
-        src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E" />
-      <div class="status" id="status">Enhanced interactive version loading…</div>
-      <div id="copy1"></div>
-      <div id="copy2"></div>
+      <img
+        class="poster"
+        alt="Molecule hero poster"
+        src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%230e3969'/%3E%3Cstop offset='1' stop-color='%23051c33'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23g)' width='1200' height='800'/%3E%3C/svg%3E"
+      />
+      <div class="status" id="status">
+        Enhanced interactive version loading…
+      </div>
+      <div id="copy1" class="copy">/ IN THE PURSUIT OF PROGRESS</div>
+      <div id="copy2" class="copy">
+        Chematek is an industrial technology company that offers products,
+        services, and solutions for chemicals, lubricants and engineering,
+        procurement, and construction.
+      </div>
       <!-- Top-most overlay for soft transparent circles -->
-      <canvas id="fx-overlay" style="position:absolute;inset:0;pointer-events:none;z-index:10"></canvas>
+      <canvas
+        id="fx-overlay"
+        style="position: absolute; inset: 0; pointer-events: none; z-index: 10"
+      ></canvas>
     </section>
-    <section id="after"><div>Scroll past the pinned hero to verify release behavior.</div></section>
+    <section id="after">
+      <div>Scroll past the pinned hero to verify release behavior.</div>
+    </section>
 
     <script src="./assets/vendor/gsap.min.js"></script>
     <script src="./assets/vendor/ScrollTrigger.min.js"></script>
     <!-- Tiny text splitter (open-source) -->
     <script src="https://cdn.jsdelivr.net/npm/split-type@0.3.4/umd/index.min.js"></script>
-    <script>if (window.gsap && window.ScrollTrigger){gsap.registerPlugin(ScrollTrigger);}</script>
+    <script>
+      if (window.gsap && window.ScrollTrigger) {
+        gsap.registerPlugin(ScrollTrigger);
+      }
+    </script>
 
     <script type="module">
       import * as THREE from "./assets/vendor/three.module.min.js";
 
       // --- Viewport unit stability for mobile
-      (function setVH(){
-        const set=()=>document.documentElement.style.setProperty("--vh", window.innerHeight*0.01 + "px");
-        set(); addEventListener("resize", set, {passive:true}); addEventListener("orientationchange", set);
+      (function setVH() {
+        const set = () =>
+          document.documentElement.style.setProperty(
+            "--vh",
+            window.innerHeight * 0.01 + "px"
+          );
+        set();
+        addEventListener("resize", set, { passive: true });
+        addEventListener("orientationchange", set);
       })();
 
       const heroEl = document.getElementById("hero");
       const statusEl = document.getElementById("status");
       const posterEl = document.querySelector(".poster");
 
+      // === Text PREP (SplitType) — split but don't animate here ===
+      let splitHead = null,
+        splitSub = null;
+      (function prepText() {
+        if (!window.SplitType || !window.gsap) {
+          console.warn("SplitType not available; static text fallback");
+          gsap.set(["#copy1", "#copy2"], { opacity: 1 });
+          return;
+        }
+        // make the containers visible; we'll animate the inner pieces later
+        gsap.set(["#copy1", "#copy2"], { opacity: 1 });
+
+        // Split like the sample (chars for headline; words for paragraph)
+        splitHead = new window.SplitType("#copy1", { types: "words, chars" });
+        splitSub = new window.SplitType("#copy2", { types: "words" });
+
+        // initial state
+        gsap.set(splitHead.chars, {
+          opacity: 0,
+          yPercent: 20,
+          willChange: "transform,opacity",
+        });
+        gsap.set(splitSub.words, {
+          opacity: 0,
+          yPercent: 20,
+          willChange: "transform,opacity",
+        });
+      })();
+
       // === Bokeh BG (under everything; keep CSS fallback until first paint)
-      (function(){
+      (function () {
         const host = heroEl;
         const bg = document.createElement("canvas");
-        const g = bg.getContext("2d", {alpha:false});
-        bg.style.position="absolute"; bg.style.inset="0"; bg.style.pointerEvents="none";
-        bg.style.zIndex="-2"; // sits under gradient canvas
+        const g = bg.getContext("2d", { alpha: false });
+        bg.style.position = "absolute";
+        bg.style.inset = "0";
+        bg.style.pointerEvents = "none";
+        bg.style.zIndex = "-2"; // sits under gradient canvas
         host.prepend(bg);
 
-        const GOLD="#ffcf86", GOLD_2="#ffc261", BASE="#050505";
-        let W=0,H=0,DPR=1,running=true, firstPaint=false;
-        const M=26, discs=[];
+        const GOLD = "#ffcf86",
+          GOLD_2 = "#ffc261",
+          BASE = "#050505";
+        let W = 0,
+          H = 0,
+          DPR = 1,
+          running = true,
+          firstPaint = false;
+        const M = 26,
+          discs = [];
 
-        function resize(){
-          DPR = Math.min(window.devicePixelRatio||1, 1.75);
-          W = Math.max(1, host.clientWidth); H = Math.max(1, host.clientHeight);
-          bg.width = Math.floor(W*DPR); bg.height = Math.floor(H*DPR);
-          bg.style.width=W+"px"; bg.style.height=H+"px";
-          g.setTransform(DPR,0,0,DPR,0,0);
+        function resize() {
+          DPR = Math.min(window.devicePixelRatio || 1, 1.75);
+          W = Math.max(1, host.clientWidth);
+          H = Math.max(1, host.clientHeight);
+          bg.width = Math.floor(W * DPR);
+          bg.height = Math.floor(H * DPR);
+          bg.style.width = W + "px";
+          bg.style.height = H + "px";
+          g.setTransform(DPR, 0, 0, DPR, 0, 0);
         }
-        function spawn(){
-          discs.length=0;
-          for(let i=0;i<M;i++){
-            const r=(Math.random()*80+50)*(H/800), x=Math.random()*W, y=Math.random()*H;
-            const s=(0.15+Math.random()*0.35)*0.12, a=Math.random()*Math.PI*2;
-            discs.push({x,y,r,s,a,phi:Math.random()*6.28});
+        function spawn() {
+          discs.length = 0;
+          for (let i = 0; i < M; i++) {
+            const r = (Math.random() * 80 + 50) * (H / 800),
+              x = Math.random() * W,
+              y = Math.random() * H;
+            const s = (0.15 + Math.random() * 0.35) * 0.12,
+              a = Math.random() * Math.PI * 2;
+            discs.push({ x, y, r, s, a, phi: Math.random() * 6.28 });
           }
         }
-        function grad(x,y,r){const t=g.createRadialGradient(x,y,r*0.05,x,y,r);t.addColorStop(0,"rgba(255,230,180,0.85)");t.addColorStop(0.45,GOLD);t.addColorStop(1,"rgba(0,0,0,0)");return t;}
-        function frame(t){
-          if(!running) return;
-          g.fillStyle=BASE; g.fillRect(0,0,W,H);
-          for(const d of discs){
-            d.a += d.s*0.5; d.phi += 0.002;
-            d.x += Math.cos(d.a)*d.s*30.0; d.y += Math.sin(d.a)*d.s*18.0;
-            if(d.x<-d.r) d.x=W+d.r; if(d.x>W+d.r) d.x=-d.r;
-            if(d.y<-d.r) d.y=H+d.r; if(d.y>H+d.r) d.y=-d.r;
+        function grad(x, y, r) {
+          const t = g.createRadialGradient(x, y, r * 0.05, x, y, r);
+          t.addColorStop(0, "rgba(255,230,180,0.85)");
+          t.addColorStop(0.45, GOLD);
+          t.addColorStop(1, "rgba(0,0,0,0)");
+          return t;
+        }
+        function frame(t) {
+          if (!running) return;
+          g.fillStyle = BASE;
+          g.fillRect(0, 0, W, H);
+          for (const d of discs) {
+            d.a += d.s * 0.5;
+            d.phi += 0.002;
+            d.x += Math.cos(d.a) * d.s * 30.0;
+            d.y += Math.sin(d.a) * d.s * 18.0;
+            if (d.x < -d.r) d.x = W + d.r;
+            if (d.x > W + d.r) d.x = -d.r;
+            if (d.y < -d.r) d.y = H + d.r;
+            if (d.y > H + d.r) d.y = -d.r;
 
-            g.globalCompositeOperation="lighter"; g.fillStyle=grad(d.x,d.y,d.r);
-            g.beginPath(); g.arc(d.x,d.y,d.r,0,Math.PI*2); g.fill();
+            g.globalCompositeOperation = "lighter";
+            g.fillStyle = grad(d.x, d.y, d.r);
+            g.beginPath();
+            g.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+            g.fill();
 
-            g.globalCompositeOperation="screen"; g.fillStyle=GOLD_2; g.globalAlpha=0.06;
-            g.beginPath(); g.arc(d.x,d.y,d.r*0.35*(1+0.2*Math.sin(d.phi)),0,Math.PI*2); g.fill();
-            g.globalAlpha=1;
+            g.globalCompositeOperation = "screen";
+            g.fillStyle = GOLD_2;
+            g.globalAlpha = 0.06;
+            g.beginPath();
+            g.arc(
+              d.x,
+              d.y,
+              d.r * 0.35 * (1 + 0.2 * Math.sin(d.phi)),
+              0,
+              Math.PI * 2
+            );
+            g.fill();
+            g.globalAlpha = 1;
           }
-          g.globalCompositeOperation="source-over";
-          if(!firstPaint){ heroEl.style.background="transparent"; firstPaint=true; }
+          g.globalCompositeOperation = "source-over";
+          if (!firstPaint) {
+            heroEl.style.background = "transparent";
+            firstPaint = true;
+          }
           requestAnimationFrame(frame);
         }
-        resize(); spawn(); requestAnimationFrame(frame);
-        addEventListener("resize", ()=>{resize(); spawn();});
-        document.addEventListener("visibilitychange", ()=>{running=!document.hidden; if(running) requestAnimationFrame(frame);});
+        resize();
+        spawn();
+        requestAnimationFrame(frame);
+        addEventListener("resize", () => {
+          resize();
+          spawn();
+        });
+        document.addEventListener("visibilitychange", () => {
+          running = !document.hidden;
+          if (running) requestAnimationFrame(frame);
+        });
       })();
 
       // === Three.js scene
       let renderer, scene, camera, molecule, rafId;
       let spinRig; // new parent for stable spin axis
-      let bonds = [], atoms = [], center;
+      let bonds = [],
+        atoms = [],
+        center;
 
       // Materials/geometry
       const CONFIG = {
@@ -140,165 +305,263 @@
         BASE_COLOR: 0x1a509b,
       };
 
-      try{
-        renderer = new THREE.WebGLRenderer({antialias:true, alpha:false, powerPreference:"high-performance"});
+      try {
+        renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: false,
+          powerPreference: "high-performance",
+        });
         const isCoarse = matchMedia("(pointer: coarse)").matches;
         const dprCap = isCoarse ? 1.75 : 2.0;
-        renderer.setPixelRatio(Math.min(devicePixelRatio||1, dprCap));
+        renderer.setPixelRatio(Math.min(devicePixelRatio || 1, dprCap));
         renderer.setSize(heroEl.clientWidth, heroEl.clientHeight, false);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.setClearColor(0x000000, 0);
         heroEl.prepend(renderer.domElement);
 
-        function updateCameraForViewport(){
+        function updateCameraForViewport() {
           const w = heroEl.clientWidth; // container-based for consistency
-          let z = 5.0; if (w<=1280) z=5.4; if (w<=900) z=5.8; if (w<=600) z=6.2; if (w<=420) z=6.6;
-          camera.position.z = z; camera.updateProjectionMatrix();
+          let z = 5.0;
+          if (w <= 1280) z = 5.4;
+          if (w <= 900) z = 5.8;
+          if (w <= 600) z = 6.2;
+          if (w <= 420) z = 6.6;
+          camera.position.z = z;
+          camera.updateProjectionMatrix();
         }
 
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(35, heroEl.clientWidth/heroEl.clientHeight, 0.1, 100);
-        camera.position.set(0,0,5);
+        camera = new THREE.PerspectiveCamera(
+          35,
+          heroEl.clientWidth / heroEl.clientHeight,
+          0.1,
+          100
+        );
+        camera.position.set(0, 0, 5);
 
         // Lights
-        const key = new THREE.DirectionalLight(0xfff4e6, 2.75); key.position.set(20.2,30.0,40.0);
-        const rim = new THREE.DirectionalLight(0xf49a59, 3.38); rim.position.set(-3.0,1.2,-2.2);
+        const key = new THREE.DirectionalLight(0xfff4e6, 2.75);
+        key.position.set(20.2, 30.0, 40.0);
+        const rim = new THREE.DirectionalLight(0xf49a59, 3.38);
+        rim.position.set(-3.0, 1.2, -2.2);
         const amb = new THREE.AmbientLight(0xfff4e6, 0.12);
-        scene.add(key,rim,amb);
+        scene.add(key, rim, amb);
 
         // Simple env via PMREM from colored planes
-        const pmrem = new THREE.PMREMGenerator(renderer); pmrem.compileEquirectangularShader();
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
         const envScene = new THREE.Scene();
-        envScene.add(new THREE.Mesh(new THREE.BoxGeometry(10,10,10), new THREE.MeshBasicMaterial({color:0x0a2746, side:THREE.BackSide})));
-        [[-2.2,2.1,-3.0,0,0,3.2,2.2,0xffd6b8,2.9],[3.0,-1.0,2.2,0,Math.PI/2,2.2,1.7,0xfff0e0,2.2],[-3.2,-2.0,1.0,0,-Math.PI/2,1.6,2.3,0xf49a59,1.7]]
-          .forEach(([x,y,z,rx,ry,w,h,hex,inten])=>{
-            const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshBasicMaterial({color:hex}));
-            m.position.set(x,y,z); m.rotation.set(rx,ry,0); m.material.color.multiplyScalar(inten); envScene.add(m);
-          });
-        const envRT = pmrem.fromScene(envScene, 0.04); scene.environment = envRT.texture;
+        envScene.add(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(10, 10, 10),
+            new THREE.MeshBasicMaterial({
+              color: 0x0a2746,
+              side: THREE.BackSide,
+            })
+          )
+        );
+        [
+          [-2.2, 2.1, -3.0, 0, 0, 3.2, 2.2, 0xffd6b8, 2.9],
+          [3.0, -1.0, 2.2, 0, Math.PI / 2, 2.2, 1.7, 0xfff0e0, 2.2],
+          [-3.2, -2.0, 1.0, 0, -Math.PI / 2, 1.6, 2.3, 0xf49a59, 1.7],
+        ].forEach(([x, y, z, rx, ry, w, h, hex, inten]) => {
+          const m = new THREE.Mesh(
+            new THREE.PlaneGeometry(w, h),
+            new THREE.MeshBasicMaterial({ color: hex })
+          );
+          m.position.set(x, y, z);
+          m.rotation.set(rx, ry, 0);
+          m.material.color.multiplyScalar(inten);
+          envScene.add(m);
+        });
+        const envRT = pmrem.fromScene(envScene, 0.04);
+        scene.environment = envRT.texture;
 
         // Materials
         const atomMat = new THREE.MeshPhysicalMaterial({
-          color: CONFIG.BASE_COLOR, roughness:0.95, metalness:0.3,
-          transmission:0.5, ior:3.1, thickness:0.3,
-          attenuationColor:new THREE.Color(CONFIG.BASE_COLOR), attenuationDistance:1.6,
-          envMapIntensity:1.46, transparent:true
+          color: CONFIG.BASE_COLOR,
+          roughness: 0.95,
+          metalness: 0.3,
+          transmission: 0.5,
+          ior: 3.1,
+          thickness: 0.3,
+          attenuationColor: new THREE.Color(CONFIG.BASE_COLOR),
+          attenuationDistance: 1.6,
+          envMapIntensity: 1.46,
+          transparent: true,
         });
-        const bondMat = atomMat.clone(); bondMat.transmission=0.82; bondMat.thickness=0.42; bondMat.envMapIntensity=1.25;
+        const bondMat = atomMat.clone();
+        bondMat.transmission = 0.82;
+        bondMat.thickness = 0.42;
+        bondMat.envMapIntensity = 1.25;
 
         // Geometries
-        const atomGeo = new THREE.SphereGeometry(CONFIG.BASE_RADIUS,48,48);
-        const halfGeo = new THREE.CylinderGeometry(CONFIG.BOND_RADIUS, CONFIG.BOND_RADIUS, 1, 24); halfGeo.translate(0,0.5,0);
+        const atomGeo = new THREE.SphereGeometry(CONFIG.BASE_RADIUS, 48, 48);
+        const halfGeo = new THREE.CylinderGeometry(
+          CONFIG.BOND_RADIUS,
+          CONFIG.BOND_RADIUS,
+          1,
+          24
+        );
+        halfGeo.translate(0, 0.5, 0);
 
         // Structure
         // SpinRig -> molecule -> masterSurface
-        spinRig = new THREE.Group(); scene.add(spinRig);
-        molecule = new THREE.Group(); spinRig.add(molecule);
-        const masterSurface = new THREE.Group(); molecule.add(masterSurface);
-        const centerGroup = new THREE.Group(); const ringGroup = new THREE.Group();
+        spinRig = new THREE.Group();
+        scene.add(spinRig);
+        molecule = new THREE.Group();
+        spinRig.add(molecule);
+        const masterSurface = new THREE.Group();
+        molecule.add(masterSurface);
+        const centerGroup = new THREE.Group();
+        const ringGroup = new THREE.Group();
         masterSurface.add(centerGroup, ringGroup);
         // Aesthetic orientation of the molecule itself (static during the spin pass)
-        masterSurface.rotation.set(Math.PI/1.5, -0.2, 0.0);
-        masterSurface.userData.rotGoal = {x:masterSurface.rotation.x, y:masterSurface.rotation.y, z:masterSurface.rotation.z};
+        masterSurface.rotation.set(Math.PI / 1.5, -0.2, 0.0);
+        masterSurface.userData.rotGoal = {
+          x: masterSurface.rotation.x,
+          y: masterSurface.rotation.y,
+          z: masterSurface.rotation.z,
+        };
         // --- Spin axis (NOT local Y). Use a diagonal so it's never colinear with any bond.
         const SPIN_AXIS = new THREE.Vector3(0.61, 0.51, 0.61).normalize();
         // Separate channels: ScrollTrigger animates yawScroll; cursor contributes cursorYaw
-        spinRig.userData.yawScroll = 0;     // raw scroll yaw (animated by GSAP)
-        let yawScrollFiltered = 0;          // low-pass filtered scroll yaw
-        const scrollLagLam = 0.5;           // ↓ lam ⇒ more lag on scroll
-        let cursorYaw = 0;                  // raw integrated cursor yaw
-        let cursorYawFiltered = 0;          // low-pass filtered cursor yaw
+        spinRig.userData.yawScroll = 0; // raw scroll yaw (animated by GSAP)
+        let yawScrollFiltered = 0; // low-pass filtered scroll yaw
+        const scrollLagLam = 0.5; // ↓ lam ⇒ more lag on scroll
+        let cursorYaw = 0; // raw integrated cursor yaw
+        let cursorYawFiltered = 0; // low-pass filtered cursor yaw
         const _spinQuatTarget = new THREE.Quaternion();
         const _spinQuatCurrent = new THREE.Quaternion(); // current rig quat snapshot
 
         // Center atom
-        center = new THREE.Mesh(atomGeo, atomMat); center.position.set(0,0,0); center.scale.setScalar(1); center.userData.baseScale=center.scale.x;
-        centerGroup.add(center); center.renderOrder=0;
+        center = new THREE.Mesh(atomGeo, atomMat);
+        center.position.set(0, 0, 0);
+        center.scale.setScalar(1);
+        center.userData.baseScale = center.scale.x;
+        centerGroup.add(center);
+        center.renderOrder = 0;
 
         // Target positions (final bonded layout)
         const R = CONFIG.TARGET_RADIUS * 0.8;
         const targets = [
-          new THREE.Vector3(0,0,R),
-          new THREE.Vector3(0,0,-R),
-          new THREE.Vector3(0,R,0),
-          new THREE.Vector3(R*Math.cos(-Math.PI/6), R*Math.sin(-Math.PI/6), 0),
-          new THREE.Vector3(R*Math.cos(7*Math.PI/6), R*Math.sin(7*Math.PI/6), 0),
+          new THREE.Vector3(0, 0, R),
+          new THREE.Vector3(0, 0, -R),
+          new THREE.Vector3(0, R, 0),
+          new THREE.Vector3(
+            R * Math.cos(-Math.PI / 6),
+            R * Math.sin(-Math.PI / 6),
+            0
+          ),
+          new THREE.Vector3(
+            R * Math.cos((7 * Math.PI) / 6),
+            R * Math.sin((7 * Math.PI) / 6),
+            0
+          ),
         ];
 
         // Outer atoms — place directly at targets (already finished state)
-        atoms = Array.from({length:5}, (_,i)=>{
-          const m=new THREE.Mesh(atomGeo, atomMat);
+        atoms = Array.from({ length: 5 }, (_, i) => {
+          const m = new THREE.Mesh(atomGeo, atomMat);
           m.position.copy(targets[i]);
-          m.scale.setScalar(1.2 + Math.random()*0.45);
+          m.scale.setScalar(1.2 + Math.random() * 0.45);
           m.userData.baseScale = m.scale.x;
-          ringGroup.add(m); m.renderOrder=2; return m;
+          ringGroup.add(m);
+          m.renderOrder = 2;
+          return m;
         });
 
         // Bonds — fully visible from frame 0 (no growth)
-        function createCenterBond(outerIdx){
+        function createCenterBond(outerIdx) {
           const bHalf = new THREE.Mesh(halfGeo, bondMat);
-          bHalf.visible = false;            // hidden at start
+          bHalf.visible = false; // hidden at start
           molecule.add(bHalf);
           bHalf.renderOrder = 1;
-          const pair = { a:null, b:bHalf, outerIdx, growth:0, growthGoal:0 };
+          const pair = {
+            a: null,
+            b: bHalf,
+            outerIdx,
+            growth: 0,
+            growthGoal: 0,
+          };
           bonds.push(pair);
           return pair;
         }
-        for(let i=0;i<5;i++) createCenterBond(i);
+        for (let i = 0; i < 5; i++) createCenterBond(i);
 
         // --- Graph routes (edges) the stars can travel along
         // Index -1 = center, 0..atoms.length-1 = outer atoms
         const routes = [];
         // center-to-each
-        for (let i=0;i<atoms.length;i++) routes.push({a:-1,b:i});
+        for (let i = 0; i < atoms.length; i++) routes.push({ a: -1, b: i });
         // all unique outer-outer pairs (light network)
-        for (let i=0;i<atoms.length;i++){
-          for (let j=i+1;j<atoms.length;j++){
-            routes.push({a:i,b:j});
+        for (let i = 0; i < atoms.length; i++) {
+          for (let j = i + 1; j < atoms.length; j++) {
+            routes.push({ a: i, b: j });
           }
         }
 
         // Bond positioning (straight, extend into atoms)
-        const UP = new THREE.Vector3(0,1,0), tmp = {
-          cw:new THREE.Vector3(), ow:new THREE.Vector3(),
-          cl:new THREE.Vector3(), ol:new THREE.Vector3(),
-          dir:new THREE.Vector3(), dirN:new THREE.Vector3(), neg:new THREE.Vector3()
-        };
+        const UP = new THREE.Vector3(0, 1, 0),
+          tmp = {
+            cw: new THREE.Vector3(),
+            ow: new THREE.Vector3(),
+            cl: new THREE.Vector3(),
+            ol: new THREE.Vector3(),
+            dir: new THREE.Vector3(),
+            dirN: new THREE.Vector3(),
+            neg: new THREE.Vector3(),
+          };
         const overlap = CONFIG.BASE_RADIUS * 0.6;
-        function positionCenterBond(pair){
-          center.getWorldPosition(tmp.cw); atoms[pair.outerIdx].getWorldPosition(tmp.ow);
-          tmp.cl.copy(tmp.cw); molecule.worldToLocal(tmp.cl);
-          tmp.ol.copy(tmp.ow); molecule.worldToLocal(tmp.ol);
-          tmp.dir.subVectors(tmp.ol,tmp.cl);
+        function positionCenterBond(pair) {
+          center.getWorldPosition(tmp.cw);
+          atoms[pair.outerIdx].getWorldPosition(tmp.ow);
+          tmp.cl.copy(tmp.cw);
+          molecule.worldToLocal(tmp.cl);
+          tmp.ol.copy(tmp.ow);
+          molecule.worldToLocal(tmp.ol);
+          tmp.dir.subVectors(tmp.ol, tmp.cl);
           const centerDist = tmp.dir.length();
-          const len = Math.max(0, centerDist - overlap*2);
+          const len = Math.max(0, centerDist - overlap * 2);
           tmp.dirN.copy(tmp.dir).normalize();
-          if (centerDist <= overlap*2 || pair.growth <= 1e-4) { pair.b.visible=false; return; }
+          if (centerDist <= overlap * 2 || pair.growth <= 1e-4) {
+            pair.b.visible = false;
+            return;
+          }
           const scaledLen = len * pair.growth;
-          if (scaledLen <= 1e-6) { pair.b.visible=false; return; }
+          if (scaledLen <= 1e-6) {
+            pair.b.visible = false;
+            return;
+          }
           pair.b.visible = true;
           // Position stays anchored at the outer atom side; growth extends inward
-          pair.b.position.copy(tmp.ol).add(tmp.dirN.clone().multiplyScalar(-overlap));
+          pair.b.position
+            .copy(tmp.ol)
+            .add(tmp.dirN.clone().multiplyScalar(-overlap));
           tmp.neg.copy(tmp.dirN).multiplyScalar(-1);
           pair.b.quaternion.setFromUnitVectors(UP, tmp.neg);
           pair.b.scale.set(1, scaledLen, 1);
         }
 
         // Render loop (no pre-flight; idle breathing after release only)
-        let time=0, finalBlend=0, enableFinalMotion=false, isFinalized=false;
+        let time = 0,
+          finalBlend = 0,
+          enableFinalMotion = false,
+          isFinalized = false;
         const clock = new THREE.Clock();
-        
+
         // Cursor → spin inertia
-        let userSpinVel = 0;                  // radians/sec from pointer
-        const sens = 0.001;                  // lower sensitivity → more "laggy" feel
-        const friction = 2.8;                 // moderate decay (keeps motion smooth)
-        const cursorLagLam = 0.6;              // low-pass lag for cursor-only channel
-        let lastMoveTS = 0, lastX = null;
-        function onPointerMove(e){
+        let userSpinVel = 0; // radians/sec from pointer
+        const sens = 0.001; // lower sensitivity → more "laggy" feel
+        const friction = 2.8; // moderate decay (keeps motion smooth)
+        const cursorLagLam = 0.6; // low-pass lag for cursor-only channel
+        let lastMoveTS = 0,
+          lastX = null;
+        function onPointerMove(e) {
           const x = e.clientX;
           const ts = performance.now();
-          if (lastX != null){
+          if (lastX != null) {
             const dtm = Math.max(1, ts - lastMoveTS) / 1000;
             const dx = x - lastX;
             const impulse = (dx * sens) / dtm;
@@ -306,33 +569,61 @@
             // clamp to avoid absurd spins
             userSpinVel = Math.max(-3.0, Math.min(3.0, userSpinVel));
           }
-          lastX = x; lastMoveTS = ts;
+          lastX = x;
+          lastMoveTS = ts;
         }
-        heroEl.addEventListener('pointermove', onPointerMove, { passive: true });
-        heroEl.addEventListener('pointerleave', ()=>{ lastX = null; }, { passive: true });
-        
-        function damp(cur,tgt,dt,lam){const k=1-Math.exp(-lam*dt);return cur+(tgt-cur)*k;}
-        function render(){
-          const dt=clock.getDelta(); time+=0.008;
+        heroEl.addEventListener("pointermove", onPointerMove, {
+          passive: true,
+        });
+        heroEl.addEventListener(
+          "pointerleave",
+          () => {
+            lastX = null;
+          },
+          { passive: true }
+        );
+
+        function damp(cur, tgt, dt, lam) {
+          const k = 1 - Math.exp(-lam * dt);
+          return cur + (tgt - cur) * k;
+        }
+        function render() {
+          const dt = clock.getDelta();
+          time += 0.008;
           // Viscous group rotation
-          const g=masterSurface.userData.rotGoal;
-          masterSurface.rotation.x = damp(masterSurface.rotation.x, g.x, dt, 1.8);
-          masterSurface.rotation.y = damp(masterSurface.rotation.y, g.y, dt, 1.8);
-          masterSurface.rotation.z = damp(masterSurface.rotation.z, g.z, dt, 1.8);
+          const g = masterSurface.userData.rotGoal;
+          masterSurface.rotation.x = damp(
+            masterSurface.rotation.x,
+            g.x,
+            dt,
+            1.8
+          );
+          masterSurface.rotation.y = damp(
+            masterSurface.rotation.y,
+            g.y,
+            dt,
+            1.8
+          );
+          masterSurface.rotation.z = damp(
+            masterSurface.rotation.z,
+            g.z,
+            dt,
+            1.8
+          );
 
           // Cursor inertia: integrate velocity into cursor yaw, apply friction
-          if (Math.abs(userSpinVel) > 1e-4){
-            cursorYaw += userSpinVel * dt;                          // integrate to yaw
-            userSpinVel *= Math.exp(-friction * dt);                // decay velocity
+          if (Math.abs(userSpinVel) > 1e-4) {
+            cursorYaw += userSpinVel * dt; // integrate to yaw
+            userSpinVel *= Math.exp(-friction * dt); // decay velocity
             if (Math.abs(userSpinVel) < 1e-3) userSpinVel = 0;
           }
           // apply extra cursor-only lag
-          cursorYawFiltered = (function lp(cur, tgt, dt, lam){
+          cursorYawFiltered = (function lp(cur, tgt, dt, lam) {
             const k = 1 - Math.exp(-lam * dt);
             return cur + (tgt - cur) * k;
           })(cursorYawFiltered, cursorYaw, dt, cursorLagLam);
           // add lag only to the scroll channel
-          yawScrollFiltered = (function lp(cur, tgt, dt, lam){
+          yawScrollFiltered = (function lp(cur, tgt, dt, lam) {
             const k = 1 - Math.exp(-lam * dt);
             return cur + (tgt - cur) * k;
           })(yawScrollFiltered, spinRig.userData.yawScroll, dt, scrollLagLam);
@@ -344,282 +635,443 @@
           // faster slerp → less scroll lag (cursor lag handled above)
           spinRig.quaternion.slerp(_spinQuatTarget, Math.min(1, dt * 12.0));
 
-          if (enableFinalMotion || finalBlend>0){
-            const mix = enableFinalMotion?1:finalBlend;
-            molecule.rotation.y += 0.00175*mix;
-            molecule.rotation.x += Math.sin(time*0.8)*0.0012*mix;
-            molecule.rotation.z += Math.cos(time*0.6)*0.0008*mix;
-            atoms.forEach((a,i)=>{const base=a.userData.baseScale; const vib=Math.sin(time*1.2+i*0.8)*0.002*mix; a.scale.setScalar(base+vib);});
-            const cb = Math.sin(time*0.9)*0.003*mix; center.scale.setScalar(center.userData.baseScale + cb);
+          if (enableFinalMotion || finalBlend > 0) {
+            const mix = enableFinalMotion ? 1 : finalBlend;
+            molecule.rotation.y += 0.00175 * mix;
+            molecule.rotation.x += Math.sin(time * 0.8) * 0.0012 * mix;
+            molecule.rotation.z += Math.cos(time * 0.6) * 0.0008 * mix;
+            atoms.forEach((a, i) => {
+              const base = a.userData.baseScale;
+              const vib = Math.sin(time * 1.2 + i * 0.8) * 0.002 * mix;
+              a.scale.setScalar(base + vib);
+            });
+            const cb = Math.sin(time * 0.9) * 0.003 * mix;
+            center.scale.setScalar(center.userData.baseScale + cb);
           }
 
           scene.updateMatrixWorld(true);
           bonds.forEach(positionCenterBond);
-          renderer.render(scene,camera);
-          rafId=requestAnimationFrame(render);
+          renderer.render(scene, camera);
+          rafId = requestAnimationFrame(render);
         }
-        rafId=requestAnimationFrame(render);
+        rafId = requestAnimationFrame(render);
 
-        function applyMoleculeScale(){
-          const s = Math.max(0.55, Math.min(0.9, (heroEl.clientHeight / 1000) * 0.8));
+        function applyMoleculeScale() {
+          const s = Math.max(
+            0.55,
+            Math.min(0.9, (heroEl.clientHeight / 1000) * 0.8)
+          );
           molecule.scale.setScalar(s);
         }
         // Resize
-        function onResize(){
-          const rect=heroEl.getBoundingClientRect(); const w=Math.max(1,rect.width|0); const h=Math.max(1,rect.height|0);
-          const isCoarse = matchMedia("(pointer: coarse)").matches; const dprCap=isCoarse?1.75:2.0;
-          const nextDpr=Math.min(window.devicePixelRatio||1,dprCap);
-          if (renderer.getPixelRatio()!==nextDpr) renderer.setPixelRatio(nextDpr);
-          camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false); updateCameraForViewport();
+        function onResize() {
+          const rect = heroEl.getBoundingClientRect();
+          const w = Math.max(1, rect.width | 0);
+          const h = Math.max(1, rect.height | 0);
+          const isCoarse = matchMedia("(pointer: coarse)").matches;
+          const dprCap = isCoarse ? 1.75 : 2.0;
+          const nextDpr = Math.min(window.devicePixelRatio || 1, dprCap);
+          if (renderer.getPixelRatio() !== nextDpr)
+            renderer.setPixelRatio(nextDpr);
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h, false);
+          updateCameraForViewport();
           applyMoleculeScale();
           if (window.ScrollTrigger) ScrollTrigger.refresh();
         }
-        addEventListener("resize", onResize, {passive:true}); addEventListener("orientationchange", onResize);
-        addEventListener("pageshow", e=>{if(e.persisted) onResize();},{passive:true}); onResize();
+        addEventListener("resize", onResize, { passive: true });
+        addEventListener("orientationchange", onResize);
+        addEventListener(
+          "pageshow",
+          (e) => {
+            if (e.persisted) onResize();
+          },
+          { passive: true }
+        );
+        onResize();
         applyMoleculeScale();
 
         // === Spin-only GSAP timeline (exactly one 360°; ease:none)
-        if (window.gsap && window.ScrollTrigger){
+        if (window.gsap && window.ScrollTrigger) {
           gsap.ticker.lagSmoothing(0);
           const tl = gsap.timeline({
-            defaults:{ease:"none"},
-            scrollTrigger:{
-              trigger:heroEl, start:"top top", end:"+=120%", scrub:1.2, pin:true, anticipatePin:1,
-              onUpdate:self=>{
-                if (!isFinalized && self.progress>=0.999){
+            defaults: { ease: "none" },
+            scrollTrigger: {
+              trigger: heroEl,
+              start: "top top",
+              end: "+=120%",
+              scrub: 1.2,
+              pin: true,
+              anticipatePin: 1,
+              onUpdate: (self) => {
+                if (!isFinalized && self.progress >= 0.999) {
                   // capture state; idle motion after unpin
                   center.userData.baseScale = center.scale.x;
-                  atoms.forEach(a=>a.userData.baseScale=a.scale.x);
-                  isFinalized=true; enableFinalMotion=!self.isActive;
+                  atoms.forEach((a) => (a.userData.baseScale = a.scale.x));
+                  isFinalized = true;
+                  enableFinalMotion = !self.isActive;
                 }
                 enableFinalMotion = isFinalized && !self.isActive;
                 // a tiny pre-spin just before release to avoid stall
-                finalBlend = self.isActive ? Math.max(0,(self.progress-0.97)/0.03) : 0;
+                finalBlend = self.isActive
+                  ? Math.max(0, (self.progress - 0.97) / 0.03)
+                  : 0;
               },
-              onEnter:()=>{ if(!rafId) rafId=requestAnimationFrame(render); finalBlend=0; enableFinalMotion=false; },
-              onEnterBack:()=>{ if(!rafId) rafId=requestAnimationFrame(render); finalBlend=0; enableFinalMotion=false; },
-              onLeave:()=>{ enableFinalMotion=true; finalBlend=0; },
-              onLeaveBack:()=>{ enableFinalMotion=false; finalBlend=0; }
-            }
+              onEnter: () => {
+                if (!rafId) rafId = requestAnimationFrame(render);
+                finalBlend = 0;
+                enableFinalMotion = false;
+              },
+              onEnterBack: () => {
+                if (!rafId) rafId = requestAnimationFrame(render);
+                finalBlend = 0;
+                enableFinalMotion = false;
+              },
+              onLeave: () => {
+                enableFinalMotion = true;
+                finalBlend = 0;
+              },
+              onLeaveBack: () => {
+                enableFinalMotion = false;
+                finalBlend = 0;
+              },
+            },
           });
           const fullTurn = Math.PI * 2;
-          const rot1Dur = 0.5;   // atoms-only rotation
-          const rot2Dur = 0.5;   // rotation with bond growth
+          const rot1Dur = 0.5; // atoms-only rotation
+          const rot2Dur = 0.5; // rotation with bond growth
 
           // Atoms: subtle appear (scale-in) at the very beginning
-          atoms.forEach((a)=>{ const b=a.userData.baseScale; a.scale.setScalar(b*0.75); });
-          gsap.to(atoms.map(a=>a.scale), {
-            x: i => atoms[i].userData.baseScale,
-            y: i => atoms[i].userData.baseScale,
-            z: i => atoms[i].userData.baseScale,
-            duration: 0.18,
-            ease: "power2.out",
-            stagger: { each: 0.015, from: "center" }
-          }, 0.0);
+          atoms.forEach((a) => {
+            const b = a.userData.baseScale;
+            a.scale.setScalar(b * 0.75);
+          });
+          gsap.to(
+            atoms.map((a) => a.scale),
+            {
+              x: (i) => atoms[i].userData.baseScale,
+              y: (i) => atoms[i].userData.baseScale,
+              z: (i) => atoms[i].userData.baseScale,
+              duration: 0.18,
+              ease: "power2.out",
+              stagger: { each: 0.015, from: "center" },
+            },
+            0.0
+          );
 
           // Rotation #1 (atoms only)
-          tl.call(() => { bonds.forEach(b => { b.growth = 0; }); }, [], 0.0);
-          tl.to(spinRig.userData, { yawScroll: `+=${fullTurn}`, duration: rot1Dur, ease: "none" }, 0.0);
+          tl.call(
+            () => {
+              bonds.forEach((b) => {
+                b.growth = 0;
+              });
+            },
+            [],
+            0.0
+          );
+          tl.to(
+            spinRig.userData,
+            { yawScroll: `+=${fullTurn}`, duration: rot1Dur, ease: "none" },
+            0.0
+          );
 
           // Kick off bond growth exactly at the boundary between #1 and #2
           // Each bond animates growth 0→1 over the full second rotation (no extra easing on the spin)
           bonds.forEach((bond) => {
-            tl.to(bond, { growth: 1, duration: rot2Dur, ease: "power2.out" }, rot1Dur);
+            tl.to(
+              bond,
+              { growth: 1, duration: rot2Dur, ease: "power2.out" },
+              rot1Dur
+            );
           });
 
           // Rotation #2 (identical spin, bonds now growing)
-          tl.to(spinRig.userData, { yawScroll: `+=${fullTurn}`, duration: rot2Dur, ease: "none" }, rot1Dur);
-          // keep x/z steady during the spin so start==end pose
+          tl.to(
+            spinRig.userData,
+            { yawScroll: `+=${fullTurn}`, duration: rot2Dur, ease: "none" },
+            rot1Dur
+          );
+          // --- Copy timeline (synced with the 2 rotations)
+          if (splitHead && splitSub) {
+            // copy1: random-char reveal, then fade out
+            tl.to(
+              splitHead.chars,
+              {
+                opacity: 1,
+                yPercent: 0,
+                duration: 0.18,
+                ease: "power2.out",
+                stagger: { each: 0.01, from: "random" },
+              },
+              0.42
+            );
+            tl.to(
+              "#copy1",
+              { opacity: 0, y: -10, duration: 0.12, ease: "power1.out" },
+              0.78
+            );
+
+            // copy2: word-by-word reveal
+            tl.to(
+              splitSub.words,
+              {
+                opacity: 1,
+                yPercent: 0,
+                duration: 0.18,
+                ease: "power2.out",
+                stagger: { each: 0.012, from: 0 },
+              },
+              0.82
+            );
+          }
         }
 
-        // === Text animation (SplitType UMD) — reveal once (no ScrollTrigger)
-        (function initTextAnim(){
-          if (!window.SplitType || !window.gsap) {
-            console.warn("SplitType not available; skipping text animation");
-            gsap.set(["#copy1", "#copy2"], { opacity: 1, yPercent: 0 });
-            return;
-          }
-          const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          const headlineEl = document.getElementById('copy1');
-          const subheadEl  = document.getElementById('copy2');
-          // Placeholders matching comps – replace with final copy when provided
-          if (headlineEl) headlineEl.textContent = headlineEl.textContent ||
-            "/ IN THE PURSUIT OF PROGRESS";
-          if (subheadEl)  subheadEl.textContent  = subheadEl.textContent  ||
-            "Chematek is an industrial technology company that offers products, services, and solutions for chemicals, lubricants and engineering, procurement, and construction.";
-          // Make containers visible; we animate inner words
-          gsap.set([headlineEl, subheadEl], { opacity: 1, clearProps: "filter" });
-          const splitHead = new window.SplitType('#copy1', { types: 'words' });
-          const splitSub  = new window.SplitType('#copy2', { types: 'words' });
-          gsap.set([splitHead.words, splitSub.words], { opacity: 0, yPercent: 20, willChange: 'transform,opacity' });
-          const tlText = gsap.timeline({ defaults: { ease: 'power2.out' } }); // play immediately
-          if (prefersReduced) {
-            tlText.to(splitHead.words, { opacity: 1, yPercent: 0, duration: 0.24, stagger: 0.02 }, 0.05)
-                  .to(splitSub.words,  { opacity: 1, yPercent: 0, duration: 0.2, stagger: 0.02  }, 0.18);
-          } else {
-            tlText.to(splitHead.words, { opacity: 1, yPercent: 0, duration: 0.36, stagger: { each: 0.018, from: 0 } }, 0.05)
-                  .to(splitSub.words,  { opacity: 1, yPercent: 0, duration: 0.28, stagger: { each: 0.012, from: 0 } }, 0.22);
-          }
-          tlText.play(0); // ensure it runs even if ScrollTrigger is busy
-        })();
-
         // === FX overlay: shooting stars from atom center to atom center ===
-        const fxCanvas = document.getElementById('fx-overlay');
-        const fxCtx = fxCanvas.getContext('2d');
-        let fxW = 0, fxH = 0, fxDPR = 1, fxRunning = true;
-        function fxResize(){
-          fxDPR = Math.min(window.devicePixelRatio||1, 2);
+        const fxCanvas = document.getElementById("fx-overlay");
+        const fxCtx = fxCanvas.getContext("2d");
+        let fxW = 0,
+          fxH = 0,
+          fxDPR = 1,
+          fxRunning = true;
+        function fxResize() {
+          fxDPR = Math.min(window.devicePixelRatio || 1, 2);
           fxW = Math.max(1, heroEl.clientWidth);
           fxH = Math.max(1, heroEl.clientHeight);
           fxCanvas.width = Math.floor(fxW * fxDPR);
           fxCanvas.height = Math.floor(fxH * fxDPR);
-          fxCanvas.style.width = fxW + 'px';
-          fxCanvas.style.height = fxH + 'px';
-          fxCtx.setTransform(fxDPR,0,0,fxDPR,0,0);
+          fxCanvas.style.width = fxW + "px";
+          fxCanvas.style.height = fxH + "px";
+          fxCtx.setTransform(fxDPR, 0, 0, fxDPR, 0, 0);
         }
-        fxResize(); addEventListener('resize', fxResize);
+        fxResize();
+        addEventListener("resize", fxResize);
 
         // Project world → screen coords in overlay space
         const _proj = new THREE.Vector3();
-        function worldToScreen(v3){
+        function worldToScreen(v3) {
           _proj.copy(v3).project(camera);
-          const x = ( _proj.x * 0.5 + 0.5) * fxW;
+          const x = (_proj.x * 0.5 + 0.5) * fxW;
           const y = (-_proj.y * 0.5 + 0.5) * fxH;
-          return { x, y, onScreen: (_proj.z > -1 && _proj.z < 1) };
+          return { x, y, onScreen: _proj.z > -1 && _proj.z < 1 };
         }
         // Helpers to get world positions by logical index (-1=center, 0..atoms.length-1=outers)
-        function getWorldByIndex(idx, out){
+        function getWorldByIndex(idx, out) {
           if (idx === -1) center.getWorldPosition(out);
           else atoms[idx].getWorldPosition(out);
         }
 
         // Stars: move along a chosen route; tail stays at origin
         const stars = []; // {a,b,t,spd,tail,width}
-        function spawnStar(){
+        function spawnStar() {
           if (!routes.length) return;
-          const e = routes[(Math.random()*routes.length)|0];
+          const e = routes[(Math.random() * routes.length) | 0];
           // random direction along this route
           const dir = Math.random() < 0.5 ? 1 : -1;
-          const a = dir>0 ? e.a : e.b;
-          const b = dir>0 ? e.b : e.a;
+          const a = dir > 0 ? e.a : e.b;
+          const b = dir > 0 ? e.b : e.a;
           stars.push({
-            a, b, t: 0,
-            spd: 0.35 + Math.random()*0.9,         // head speed
-            tail: 0.2 + Math.random()*0.22,        // tail fraction of route
-            width: 1 + Math.random()*1.2
+            a,
+            b,
+            t: 0,
+            spd: 0.35 + Math.random() * 0.9, // head speed
+            tail: 0.2 + Math.random() * 0.22, // tail fraction of route
+            width: 1 + Math.random() * 1.2,
           });
         }
-        let fxLastTS = 0, spawnTimer = 0;
-        function renderFX(ts){
-          if (!fxRunning){ requestAnimationFrame(renderFX); return; }
+        let fxLastTS = 0,
+          spawnTimer = 0;
+        function renderFX(ts) {
+          if (!fxRunning) {
+            requestAnimationFrame(renderFX);
+            return;
+          }
           if (!fxLastTS) fxLastTS = ts;
-          const dt = (ts - fxLastTS)/1000; fxLastTS = ts;
+          const dt = (ts - fxLastTS) / 1000;
+          fxLastTS = ts;
           // Sometimes none; sometimes 1–3 stars
           spawnTimer -= dt;
-          if (spawnTimer <= 0){
-            const n = 1 + (Math.random()<0.35 ? (Math.random()<0.5?1:2) : 0);
-            for (let i=0;i<n;i++) spawnStar();
-            spawnTimer = 0.6 + Math.random()*1.8;
+          if (spawnTimer <= 0) {
+            const n =
+              1 + (Math.random() < 0.35 ? (Math.random() < 0.5 ? 1 : 2) : 0);
+            for (let i = 0; i < n; i++) spawnStar();
+            spawnTimer = 0.6 + Math.random() * 1.8;
           }
 
-          fxCtx.clearRect(0,0,fxW,fxH);
+          fxCtx.clearRect(0, 0, fxW, fxH);
 
           // --- draw faint routes (center-to-outer + outer-to-outer)
           fxCtx.save();
           fxCtx.globalAlpha = 0.15;
           fxCtx.lineWidth = 0.6;
-          fxCtx.strokeStyle = 'rgba(255,255,255,0.7)';
-          const aW = new THREE.Vector3(), bW = new THREE.Vector3();
-          for (const e of routes){
-            getWorldByIndex(e.a, aW); getWorldByIndex(e.b, bW);
-            const a2 = worldToScreen(aW), b2 = worldToScreen(bW);
+          fxCtx.strokeStyle = "rgba(255,255,255,0.7)";
+          const aW = new THREE.Vector3(),
+            bW = new THREE.Vector3();
+          for (const e of routes) {
+            getWorldByIndex(e.a, aW);
+            getWorldByIndex(e.b, bW);
+            const a2 = worldToScreen(aW),
+              b2 = worldToScreen(bW);
             if (!a2.onScreen || !b2.onScreen) continue;
-            fxCtx.beginPath(); fxCtx.moveTo(a2.x, a2.y); fxCtx.lineTo(b2.x, b2.y); fxCtx.stroke();
+            fxCtx.beginPath();
+            fxCtx.moveTo(a2.x, a2.y);
+            fxCtx.lineTo(b2.x, b2.y);
+            fxCtx.stroke();
           }
           fxCtx.restore();
 
-          fxCtx.globalCompositeOperation = 'lighter';
+          fxCtx.globalCompositeOperation = "lighter";
           // Draw & update stars
-          const aw = new THREE.Vector3(), bw = new THREE.Vector3();
-          for (let i=stars.length-1;i>=0;i--){
+          const aw = new THREE.Vector3(),
+            bw = new THREE.Vector3();
+          for (let i = stars.length - 1; i >= 0; i--) {
             const st = stars[i];
             st.t += st.spd * dt;
-            if (st.t >= 1){ stars.splice(i,1); continue; }
+            if (st.t >= 1) {
+              stars.splice(i, 1);
+              continue;
+            }
             // world positions
             getWorldByIndex(st.a, aw);
             getWorldByIndex(st.b, bw);
-            const a2 = worldToScreen(aw), b2 = worldToScreen(bw);
+            const a2 = worldToScreen(aw),
+              b2 = worldToScreen(bW);
             if (!a2.onScreen || !b2.onScreen) continue;
-            const lerp = (a,b,t)=>({ x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t });
-            const head = lerp(a2,b2,st.t);
+            const lerp = (a, b, t) => ({
+              x: a.x + (b.x - a.x) * t,
+              y: a.y + (b.y - a.y) * t,
+            });
+            const head = lerp(a2, b2, st.t);
             const tailT = Math.max(0, st.t - st.tail);
-            const tail = lerp(a2,b2,tailT);   // tail always attached to origin atom
+            const tail = lerp(a2, b2, tailT); // tail always attached to origin atom
             // gradient line tail→head
-            const g = fxCtx.createLinearGradient(tail.x, tail.y, head.x, head.y);
-            g.addColorStop(0.00, 'rgba(255,220,160,0.00)');
-            g.addColorStop(0.55, 'rgba(255,220,160,0.45)');
-            g.addColorStop(1.00, 'rgba(255,220,160,0.95)');
-            fxCtx.lineCap = 'round';
+            const g = fxCtx.createLinearGradient(
+              tail.x,
+              tail.y,
+              head.x,
+              head.y
+            );
+            g.addColorStop(0.0, "rgba(255,220,160,0.00)");
+            g.addColorStop(0.55, "rgba(255,220,160,0.45)");
+            g.addColorStop(1.0, "rgba(255,220,160,0.95)");
+            fxCtx.lineCap = "round";
             fxCtx.lineWidth = st.width;
             fxCtx.strokeStyle = g;
-            fxCtx.beginPath(); fxCtx.moveTo(tail.x, tail.y); fxCtx.lineTo(head.x, head.y); fxCtx.stroke();
+            fxCtx.beginPath();
+            fxCtx.moveTo(tail.x, tail.y);
+            fxCtx.lineTo(head.x, head.y);
+            fxCtx.stroke();
             // small glowing head
-            fxCtx.beginPath(); fxCtx.fillStyle = 'rgba(255,230,190,0.95)';
-            fxCtx.arc(head.x, head.y, 1.2 + st.width*0.6, 0, Math.PI*2); fxCtx.fill();
+            fxCtx.beginPath();
+            fxCtx.fillStyle = "rgba(255,230,190,0.95)";
+            fxCtx.arc(head.x, head.y, 1.2 + st.width * 0.6, 0, Math.PI * 2);
+            fxCtx.fill();
           }
-          fxCtx.globalCompositeOperation = 'source-over';
+          fxCtx.globalCompositeOperation = "source-over";
 
           requestAnimationFrame(renderFX);
         }
         requestAnimationFrame(renderFX);
-        document.addEventListener('visibilitychange', ()=>{ fxRunning = !document.hidden; });
-        if (window.ScrollTrigger){
+        document.addEventListener("visibilitychange", () => {
+          fxRunning = !document.hidden;
+        });
+        if (window.ScrollTrigger) {
           ScrollTrigger.create({
-            trigger: heroEl, start: 'top top', end: 'bottom top',
-            onEnter: ()=> fxRunning = true,
-            onEnterBack: ()=> fxRunning = true,
-            onLeave: ()=> fxRunning = true,
-            onLeaveBack: ()=> fxRunning = true
+            trigger: heroEl,
+            start: "top top",
+            end: "bottom top",
+            onEnter: () => (fxRunning = true),
+            onEnterBack: () => (fxRunning = true),
+            onLeave: () => (fxRunning = true),
+            onLeaveBack: () => (fxRunning = true),
           });
         }
 
         // Hide poster and status
-        setTimeout(()=>posterEl && posterEl.classList.add("hidden"),150);
-        statusEl.textContent="Enhanced interactive version ready"; setTimeout(()=>statusEl.remove(),600);
-
-      }catch(err){
+        setTimeout(() => posterEl && posterEl.classList.add("hidden"), 150);
+        statusEl.textContent = "Enhanced interactive version ready";
+        setTimeout(() => statusEl.remove(), 600);
+      } catch (err) {
         console.error("WebGL init failed:", err);
-        statusEl.textContent="WebGL not supported. Showing poster.";
-        if(rafId) cancelAnimationFrame(rafId);
+        statusEl.textContent = "WebGL not supported. Showing poster.";
+        if (rafId) cancelAnimationFrame(rafId);
       }
     </script>
 
     <script>
       // === Animated gradient BG (above bokeh; keep CSS fallback until first draw; pause on hidden)
-      (function(){
-        const TARGET=document.getElementById("hero"); if(!TARGET) return;
-        const cvs=document.createElement("canvas"); const ctx=cvs.getContext("2d",{alpha:false});
-        cvs.style.position="absolute"; cvs.style.inset="0"; cvs.style.zIndex="-1"; cvs.style.pointerEvents="none";
+      (function () {
+        const TARGET = document.getElementById("hero");
+        if (!TARGET) return;
+        const cvs = document.createElement("canvas");
+        const ctx = cvs.getContext("2d", { alpha: false });
+        cvs.style.position = "absolute";
+        cvs.style.inset = "0";
+        cvs.style.zIndex = "-1";
+        cvs.style.pointerEvents = "none";
         TARGET.prepend(cvs);
-        let w=0,h=0, ready=false, running=true;
-        const COLOR_A="#031a30", COLOR_B="#104068";
-        function resize(){ w=TARGET.clientWidth; h=TARGET.clientHeight; cvs.width=w; cvs.height=h; }
-        function lerpColor(a,b,t){const ar=parseInt(a.substr(1,2),16),ag=parseInt(a.substr(3,2),16),ab=parseInt(a.substr(5,2),16);
-          const br=parseInt(b.substr(1,2),16),bg=parseInt(b.substr(3,2),16),bb=parseInt(b.substr(5,2),16);
-          const r=Math.round(ar+(br-ar)*t), g=Math.round(ag+(bg-ag)*t), bl=Math.round(ab+(bb-ab)*t); return `rgb(${r},${g},${bl})`; }
-        function draw(t){
-          const time=t*0.003, angle=time*0.05, cx=w/2, cy=h/2, len=Math.sqrt(w*w+h*h)/2;
-          const x0=cx+Math.cos(angle)*len, y0=cy+Math.sin(angle)*len, x1=cx-Math.cos(angle)*len, y1=cy-Math.sin(angle)*len;
-          const grad=ctx.createLinearGradient(x0,y0,x1,y1);
-          grad.addColorStop(0, COLOR_A);
-          grad.addColorStop(0.5+0.2*Math.sin(time*0.5), lerpColor(COLOR_A,COLOR_B,0.5));
-          grad.addColorStop(1, COLOR_B);
-          ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
-          if(!ready){ TARGET.style.background="transparent"; ready=true; }
+        let w = 0,
+          h = 0,
+          ready = false,
+          running = true;
+        const COLOR_A = "#031a30",
+          COLOR_B = "#104068";
+        function resize() {
+          w = TARGET.clientWidth;
+          h = TARGET.clientHeight;
+          cvs.width = w;
+          cvs.height = h;
         }
-        function loop(t){ if(!running){ requestAnimationFrame(loop); return; } draw(t); requestAnimationFrame(loop); }
-        resize(); requestAnimationFrame(loop); addEventListener("resize", resize);
-        document.addEventListener("visibilitychange", ()=>{running=!document.hidden;});
+        function lerpColor(a, b, t) {
+          const ar = parseInt(a.substr(1, 2), 16),
+            ag = parseInt(a.substr(3, 2), 16),
+            ab = parseInt(a.substr(5, 2), 16);
+          const br = parseInt(b.substr(1, 2), 16),
+            bg = parseInt(b.substr(3, 2), 16),
+            bb = parseInt(b.substr(5, 2), 16);
+          const r = Math.round(ar + (br - ar) * t),
+            g = Math.round(ag + (bg - ag) * t),
+            bl = Math.round(ab + (bb - ab) * t);
+          return `rgb(${r},${g},${bl})`;
+        }
+        function draw(t) {
+          const time = t * 0.003,
+            angle = time * 0.05,
+            cx = w / 2,
+            cy = h / 2,
+            len = Math.sqrt(w * w + h * h) / 2;
+          const x0 = cx + Math.cos(angle) * len,
+            y0 = cy + Math.sin(angle) * len,
+            x1 = cx - Math.cos(angle) * len,
+            y1 = cy - Math.sin(angle) * len;
+          const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+          grad.addColorStop(0, COLOR_A);
+          grad.addColorStop(
+            0.5 + 0.2 * Math.sin(time * 0.5),
+            lerpColor(COLOR_A, COLOR_B, 0.5)
+          );
+          grad.addColorStop(1, COLOR_B);
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h);
+          if (!ready) {
+            TARGET.style.background = "transparent";
+            ready = true;
+          }
+        }
+        function loop(t) {
+          if (!running) {
+            requestAnimationFrame(loop);
+            return;
+          }
+          draw(t);
+          requestAnimationFrame(loop);
+        }
+        resize();
+        requestAnimationFrame(loop);
+        addEventListener("resize", resize);
+        document.addEventListener("visibilitychange", () => {
+          running = !document.hidden;
+        });
       })();
     </script>
   </body>
