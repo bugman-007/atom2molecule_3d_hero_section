@@ -845,12 +845,19 @@
             { yawScroll: `+=${fullTurn}`, duration: rot2Dur, ease: "none" },
             rot1Dur
           );
-          // --- Copy timeline (time-driven; triggered by scroll, not scrubbed)
+          // --- Copy timeline (now driven by the main hero timeline)
           if (splitHead && splitSub) {
+            // guard so we don't replay on every tiny scrub around 0.5
+            let copyRun = false;
+
+            // 1) build the text timeline, but keep it paused
             const textTl = gsap.timeline({ paused: true });
-            // Ensure wrapper is interactable while animating forward/reverse
+
+            // make wrappers visible
             textTl.set("#copy1", { autoAlpha: 1, pointerEvents: "auto" }, 0);
-            // copy1: split-text entrance
+            textTl.set("#copy2", { autoAlpha: 1, pointerEvents: "auto" }, 0);
+
+            // copy1: headline in
             textTl.to(
               splitHead.chars,
               {
@@ -862,7 +869,8 @@
               },
               0
             );
-            // copy1: split-text exit after a short hold
+
+            // copy1: headline out
             textTl.to(
               splitHead.chars,
               {
@@ -874,8 +882,8 @@
               },
               "+=0.60"
             );
-            textTl.set("#copy1", { autoAlpha: 0, pointerEvents: "none" });
-            // copy2: word-by-word reveal
+
+            // copy2: RIGHT AFTER copy1 exits
             textTl.to(
               splitSub.words,
               {
@@ -888,19 +896,19 @@
               "+=0.10"
             );
 
-            // Scroll activates, timer animates:
-            ScrollTrigger.create({
-              trigger: heroEl,
-              start: "top top",
-              end: "+=120%",
-              // Option A (recommended default): reversible
-              onEnter: () => textTl.timeScale(1).restart(true),
-              onEnterBack: () => textTl.timeScale(1).restart(true),
-              onLeaveBack: () => textTl.timeScale(1).reverse(0),
-              // If you want one-shot instead, comment the 3 lines above and use:
-              // once: true,
-              // onEnter: () => textTl.restart(true),
-            });
+            // 2) fire ONCE when the first rotation ends (client requirement)
+            tl.add(() => {
+              if (!copyRun) {
+                copyRun = true; // lock it
+                textTl.time(0).play(); // play full sequence → copy1 → copy2
+              }
+            }, rot1Dur);
+
+            // 3) reset when the main TL goes back to start (scrolling back to top)
+            tl.add(() => {
+              copyRun = false;
+              textTl.pause(0).progress(0);
+            }, 0);
           }
         }
 
