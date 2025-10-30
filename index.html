@@ -345,7 +345,7 @@
       // Materials/geometry
       const CONFIG = {
         BASE_RADIUS: 0.25,
-        BOND_RADIUS: 0.07,
+        BOND_RADIUS: 0.07 * 0.5,
         TARGET_RADIUS: 0.9,
         BASE_COLOR: 0x1a509b,
       };
@@ -483,13 +483,14 @@
         // Center atom
         center = new THREE.Mesh(atomGeo, atomMat);
         center.position.set(0, 0, 0);
-        center.scale.setScalar(1);
+        center.scale.setScalar(0.7);
         center.userData.baseScale = center.scale.x;
         centerGroup.add(center);
         center.renderOrder = 0;
 
         // Target positions (final bonded layout)
-        const R = CONFIG.TARGET_RADIUS * 0.8;
+        const R = CONFIG.TARGET_RADIUS * 1.2;
+
         const targets = [
           new THREE.Vector3(0, 0, R),
           new THREE.Vector3(0, 0, -R),
@@ -510,8 +511,15 @@
         atoms = Array.from({ length: 5 }, (_, i) => {
           const m = new THREE.Mesh(atomGeo, atomMat);
           m.position.copy(targets[i]);
-          m.scale.setScalar(1.2 + Math.random() * 0.45);
-          m.userData.baseScale = m.scale.x;
+
+          // original random size
+          const base = 1.2 + Math.random() * 0.45;
+
+          // ↓ 50% diameter
+          const scaled = base * 0.5;
+
+          m.scale.setScalar(scaled);
+          m.userData.baseScale = m.scale.x; // keep for idle breathing
           ringGroup.add(m);
           m.renderOrder = 2;
           return m;
