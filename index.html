@@ -847,17 +847,17 @@
           );
           // --- Copy timeline (now driven by the main hero timeline)
           if (splitHead && splitSub) {
-            // guard so we don't replay on every tiny scrub around 0.5
-            let copyRun = false;
+            // we need to know scroll direction from the same ScrollTrigger
+            const st = tl.scrollTrigger;
 
-            // 1) build the text timeline, but keep it paused
+            // 1) build the text timeline, paused
             const textTl = gsap.timeline({ paused: true });
 
-            // make wrappers visible
+            // keep containers visible
             textTl.set("#copy1", { autoAlpha: 1, pointerEvents: "auto" }, 0);
             textTl.set("#copy2", { autoAlpha: 1, pointerEvents: "auto" }, 0);
 
-            // copy1: headline in
+            // copy 1 in
             textTl.to(
               splitHead.chars,
               {
@@ -870,7 +870,7 @@
               0
             );
 
-            // copy1: headline out
+            // copy 1 out
             textTl.to(
               splitHead.chars,
               {
@@ -883,7 +883,7 @@
               "+=0.60"
             );
 
-            // copy2: RIGHT AFTER copy1 exits
+            // copy 2 in (right after copy 1 gone)
             textTl.to(
               splitSub.words,
               {
@@ -896,17 +896,33 @@
               "+=0.10"
             );
 
-            // 2) fire ONCE when the first rotation ends (client requirement)
+            // 🔴 NEW: copy 2 out — needed for reverse play
+            textTl.to(
+              splitSub.words,
+              {
+                opacity: 0,
+                yPercent: -18,
+                duration: 0.28,
+                ease: "power2.in",
+                stagger: { each: 0.01, from: "end" },
+              },
+              "+=0.50"
+            );
+
+            // 2) forward vs backward at the exact end of rotation #1
             tl.add(() => {
-              if (!copyRun) {
-                copyRun = true; // lock it
-                textTl.time(0).play(); // play full sequence → copy1 → copy2
+              // st.direction: 1 = scrolling down, -1 = scrolling up
+              if (st && st.direction === 1) {
+                // ↓ forward pass: copy1 → copy1 out → copy2 → copy2 out
+                textTl.pause(0).play(0);
+              } else if (st && st.direction === -1) {
+                // ↑ reverse pass: copy2 → copy2 out → copy1 → copy1 out
+                textTl.pause(textTl.duration()).reverse();
               }
             }, rot1Dur);
 
-            // 3) reset when the main TL goes back to start (scrolling back to top)
+            // 3) hard reset right at start of main TL
             tl.add(() => {
-              copyRun = false;
               textTl.pause(0).progress(0);
             }, 0);
           }
