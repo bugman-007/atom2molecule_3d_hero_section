@@ -199,6 +199,7 @@
       const heroEl = document.getElementById("hero");
       const statusEl = document.getElementById("status");
       const posterEl = document.querySelector(".poster");
+      let heroZoomLocked = false;
 
       // === Text PREP (SplitType) — split but don't animate here ===
       let splitHead = null,
@@ -345,7 +346,7 @@
       // Materials/geometry
       const CONFIG = {
         BASE_RADIUS: 0.25,
-        BOND_RADIUS: 0.07 * 0.5,
+        BOND_RADIUS: 0.07 * 0.7,
         TARGET_RADIUS: 0.9,
         BASE_COLOR: 0x1a509b,
       };
@@ -366,6 +367,7 @@
         heroEl.prepend(renderer.domElement);
 
         function updateCameraForViewport() {
+          if (heroZoomLocked) return; // keep the “hero zoom” the client asked for
           const w = heroEl.clientWidth; // container-based for consistency
           let z = 5.0;
           if (w <= 1280) z = 5.4;
@@ -844,6 +846,52 @@
             spinRig.userData,
             { yawScroll: `+=${fullTurn}`, duration: rot2Dur, ease: "none" },
             rot1Dur
+          );
+          const carryDur = 0.5; // same as your zoom duration
+          const carrySpin = Math.PI * 2 * 0.18; // ~65°; bump up if you want more spin
+          tl.to(
+            spinRig.userData,
+            { yawScroll: `+=${carrySpin}`, duration: carryDur, ease: "none" },
+            rot1Dur + rot2Dur // start exactly when rotation #2 ends → no overwrite
+          );
+          // Camera push-in right after bonding finishes
+          const camStartZ = camera.position.z; // whatever viewport calc gave us
+          const zoomDur = 0.5;
+          tl.to(
+            camera.position,
+            {
+              // go closer but not too much; tweak 3.6 → 3.4 if client wants bigger
+              z: () => Math.max(2.5, camStartZ * 0.5),
+              duration: zoomDur,
+              ease: "power2.out",
+              onComplete: () => {
+                heroZoomLocked = true;
+              },
+            },
+            rot1Dur + rot2Dur - 0.12 // start a hair before bonds fully finish = looks "connected"
+          );
+
+          // Keep rotating WHILE zooming (forward & reverse)
+          const zoomSpin = Math.PI * 2 * 0.22;
+          tl.to(
+            spinRig.userData,
+            {
+              yawScroll: `+=${zoomSpin}`,
+              duration: zoomDur,
+              ease: "none",
+            },
+            rot1Dur + rot2Dur - 0.12
+          );
+
+          // Tiny tail spin so zoom-out (reverse) never looks frozen
+          tl.to(
+            spinRig.userData,
+            {
+              yawScroll: `+=${zoomSpin * 0.35}`,
+              duration: 0.35,
+              ease: "none",
+            },
+            rot1Dur + rot2Dur + zoomDur - 0.02
           );
           // --- Copy timeline (now driven by the main hero timeline)
           if (splitHead && splitSub) {
